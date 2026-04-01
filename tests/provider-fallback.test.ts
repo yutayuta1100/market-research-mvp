@@ -13,7 +13,7 @@ describe("buildSignalConnectors", () => {
       amazonAccessKeyId: "",
       amazonSecretAccessKey: "",
       keepaApiKey: "",
-    });
+    }, "en");
 
     const batches = await Promise.all(
       connectors.map((connector) =>

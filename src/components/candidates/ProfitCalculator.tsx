@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { formatCurrency, formatPercent } from "@/lib/formatters";
+import { getDictionary, type AppLocale } from "@/lib/i18n";
 import { calculateProfit } from "@/lib/profit/calculate-profit";
 
 interface ProfitCalculatorProps {
@@ -13,9 +14,11 @@ interface ProfitCalculatorProps {
     shippingCost: number;
     otherCost: number;
   };
+  locale: AppLocale;
 }
 
-export function ProfitCalculator({ initialInput }: ProfitCalculatorProps) {
+export function ProfitCalculator({ initialInput, locale }: ProfitCalculatorProps) {
+  const dictionary = getDictionary(locale);
   const [buyPrice, setBuyPrice] = useState(initialInput.buyPrice);
   const [sellPrice, setSellPrice] = useState(initialInput.sellPrice);
   const [platformFeePercent, setPlatformFeePercent] = useState(initialInput.platformFeeRate * 100);
@@ -34,18 +37,16 @@ export function ProfitCalculator({ initialInput }: ProfitCalculatorProps) {
     <section className="panel-surface p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">Profit estimator</p>
-          <h2 className="mt-2 text-2xl font-semibold text-ink">Manual spread calculator</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Adjust assumptions to estimate profit, margin, and breakeven without touching any purchase flow.
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{dictionary.profit.eyebrow}</p>
+          <h2 className="mt-2 text-2xl font-semibold text-ink">{dictionary.profit.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">{dictionary.profit.description}</p>
         </div>
-        <span className="pill">Rule based</span>
+        <span className="pill">{dictionary.profit.ruleBasedBadge}</span>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <label className="space-y-2 text-sm text-muted">
-          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">Buy price (JPY)</span>
+          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">{dictionary.profit.buyPrice}</span>
           <input
             className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none focus:border-accent"
             min={0}
@@ -56,7 +57,7 @@ export function ProfitCalculator({ initialInput }: ProfitCalculatorProps) {
         </label>
 
         <label className="space-y-2 text-sm text-muted">
-          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">Expected sale price (JPY)</span>
+          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">{dictionary.profit.sellPrice}</span>
           <input
             className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none focus:border-accent"
             min={0}
@@ -67,7 +68,9 @@ export function ProfitCalculator({ initialInput }: ProfitCalculatorProps) {
         </label>
 
         <label className="space-y-2 text-sm text-muted">
-          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">Platform fee (%)</span>
+          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">
+            {dictionary.profit.platformFee}
+          </span>
           <input
             className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none focus:border-accent"
             min={0}
@@ -79,7 +82,7 @@ export function ProfitCalculator({ initialInput }: ProfitCalculatorProps) {
         </label>
 
         <label className="space-y-2 text-sm text-muted">
-          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">Shipping (JPY)</span>
+          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">{dictionary.profit.shipping}</span>
           <input
             className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none focus:border-accent"
             min={0}
@@ -90,7 +93,9 @@ export function ProfitCalculator({ initialInput }: ProfitCalculatorProps) {
         </label>
 
         <label className="space-y-2 text-sm text-muted md:col-span-2">
-          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">Other costs (JPY)</span>
+          <span className="block text-xs font-semibold uppercase tracking-[0.18em]">
+            {dictionary.profit.otherCosts}
+          </span>
           <input
             className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none focus:border-accent"
             min={0}
@@ -103,26 +108,33 @@ export function ProfitCalculator({ initialInput }: ProfitCalculatorProps) {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="metric-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Net profit</p>
-          <p className="mt-3 text-2xl font-semibold text-ink">{formatCurrency(result.netProfit)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{dictionary.profit.netProfit}</p>
+          <p className="mt-3 text-2xl font-semibold text-ink">{formatCurrency(result.netProfit, locale)}</p>
         </div>
         <div className="metric-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Margin</p>
-          <p className="mt-3 text-2xl font-semibold text-ink">{formatPercent(result.marginRate)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{dictionary.profit.margin}</p>
+          <p className="mt-3 text-2xl font-semibold text-ink">{formatPercent(result.marginRate, locale)}</p>
         </div>
         <div className="metric-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">ROI</p>
-          <p className="mt-3 text-2xl font-semibold text-ink">{formatPercent(result.roiRate)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{dictionary.profit.roi}</p>
+          <p className="mt-3 text-2xl font-semibold text-ink">{formatPercent(result.roiRate, locale)}</p>
         </div>
         <div className="metric-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Breakeven sale</p>
-          <p className="mt-3 text-2xl font-semibold text-ink">{formatCurrency(result.breakevenSalePrice)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+            {dictionary.profit.breakevenSale}
+          </p>
+          <p className="mt-3 text-2xl font-semibold text-ink">
+            {formatCurrency(result.breakevenSalePrice, locale)}
+          </p>
         </div>
       </div>
 
       <div className="mt-6 rounded-[22px] border border-line/80 bg-white/75 p-4 text-sm leading-6 text-muted">
-        Cost basis {formatCurrency(result.costBasis)} includes buy, shipping, and other costs. Platform fees add{" "}
-        {formatCurrency(result.platformFeeAmount)} at the current rate of {formatPercent(result.platformFeeRate)}.
+        {dictionary.profit.costBasisSummary(
+          formatCurrency(result.costBasis, locale),
+          formatCurrency(result.platformFeeAmount, locale),
+          formatPercent(result.platformFeeRate, locale),
+        )}
       </div>
     </section>
   );

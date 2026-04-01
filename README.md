@@ -39,6 +39,16 @@ Milestone 0 and Milestone 1 are implemented in a mock-first form:
 
 Live connector execution is intentionally deferred to Milestone 2. If credentials are unavailable, the app stays fully runnable in mock mode for local, preview, and production deployments.
 
+## UI languages
+
+- Japanese is the default operator experience at `/`
+- English remains available at `/en`
+- Candidate detail pages follow the same split:
+  - Japanese: `/candidates/[slug]`
+  - English: `/en/candidates/[slug]`
+
+The bilingual UI remains mock-first in both routes. Language switching changes copy, mock data descriptions, connector status text, and explainable score messaging without altering the market-research-only product scope.
+
 ## Stack
 
 - Next.js 15 App Router

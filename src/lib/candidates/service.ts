@@ -2,7 +2,8 @@ import type { CandidateFilters, CandidateRecord, CandidateSortOption, ConnectorS
 import { watchConfig } from "@/lib/config/watch-config";
 import { buildSignalConnectors } from "@/lib/connectors/registry";
 import type { ConnectorSignal } from "@/lib/connectors/types";
-import { candidateCatalog } from "@/lib/mock/fixtures";
+import { getCategoryLabel, getKeywordLabel, type AppLocale } from "@/lib/i18n";
+import { getCandidateCatalog } from "@/lib/mock/fixtures";
 import { calculateProfit } from "@/lib/profit/calculate-profit";
 import { scoreCandidate } from "@/lib/scoring/score-candidate";
 import { env } from "@/lib/config/env";
@@ -69,8 +70,9 @@ function filterCandidates(candidates: CandidateRecord[], filters: CandidateFilte
   });
 }
 
-function buildCandidateRecords() {
-  const connectors = buildSignalConnectors();
+function buildCandidateRecords(locale: AppLocale) {
+  const localizedCatalog = getCandidateCatalog(locale);
+  const connectors = buildSignalConnectors(undefined, locale);
   const connectorStatuses: ConnectorStatus[] = connectors.map((connector) => ({
     kind: connector.kind,
     mode: connector.mode,
@@ -85,7 +87,7 @@ function buildCandidateRecords() {
       groupedSignals.set(signal.candidateSlug, [...existingSignals, signal]);
     });
 
-    const candidates = candidateCatalog.map((candidate) => {
+    const candidates = localizedCatalog.map((candidate) => {
       const signals = [...(groupedSignals.get(candidate.slug) ?? [])].sort(
         (left, right) => new Date(right.observedAt).getTime() - new Date(left.observedAt).getTime(),
       );
@@ -101,6 +103,7 @@ function buildCandidateRecords() {
         signals,
         riskFlags: candidate.riskFlags,
         highMarginThreshold: env.HIGH_MARGIN_THRESHOLD,
+        locale,
       });
 
       return {
@@ -119,22 +122,25 @@ function buildCandidateRecords() {
   });
 }
 
-export async function loadDashboardData(filters: CandidateFilters = {}): Promise<DashboardData> {
-  const { candidates, connectorStatuses } = await buildCandidateRecords();
-  const categories = [...new Set(candidateCatalog.map((candidate) => candidate.category))].sort();
+export async function loadDashboardData(
+  filters: CandidateFilters = {},
+  locale: AppLocale = "ja",
+): Promise<DashboardData> {
+  const localizedCatalog = getCandidateCatalog(locale);
+  const { candidates, connectorStatuses } = await buildCandidateRecords(locale);
+  const categories = [...new Set(localizedCatalog.map((candidate) => candidate.category))].sort();
   const filteredCandidates = filterCandidates(candidates, filters);
 
   return {
     candidates: sortCandidates(filteredCandidates, filters.sort ?? "score"),
-    watchKeywords: watchConfig.keywords,
-    watchCategories: watchConfig.categories,
+    watchKeywords: watchConfig.keywords.map((keyword) => getKeywordLabel(keyword, locale)),
+    watchCategories: watchConfig.categories.map((category) => getCategoryLabel(category, locale)),
     connectorStatuses,
     categories,
   };
 }
 
-export async function getCandidateBySlug(slug: string) {
-  const { candidates } = await buildCandidateRecords();
+export async function getCandidateBySlug(slug: string, locale: AppLocale = "ja") {
+  const { candidates } = await buildCandidateRecords(locale);
   return candidates.find((candidate) => candidate.slug === slug) ?? null;
 }
-

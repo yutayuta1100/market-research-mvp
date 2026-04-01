@@ -1,20 +1,24 @@
 import type { ScoreBreakdown } from "@/lib/candidates/types";
+import { getDictionary, type AppLocale } from "@/lib/i18n";
 
 interface ScoreBreakdownCardProps {
   score: ScoreBreakdown;
+  locale: AppLocale;
 }
 
-export function ScoreBreakdownCard({ score }: ScoreBreakdownCardProps) {
+export function ScoreBreakdownCard({ score, locale }: ScoreBreakdownCardProps) {
+  const dictionary = getDictionary(locale);
+
   return (
     <section className="panel-surface p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">Explainable score</p>
-          <h2 className="mt-2 text-2xl font-semibold text-ink">Why this candidate ranks here</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{dictionary.score.eyebrow}</p>
+          <h2 className="mt-2 text-2xl font-semibold text-ink">{dictionary.score.title}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{score.summary}</p>
         </div>
         <div className="rounded-[24px] bg-accentSoft px-5 py-4 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Score</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">{dictionary.score.scoreLabel}</p>
           <p className="mt-1 text-3xl font-semibold text-ink">{score.total}</p>
         </div>
       </div>
@@ -38,7 +42,7 @@ export function ScoreBreakdownCard({ score }: ScoreBreakdownCardProps) {
       </div>
 
       <div className="mt-6 rounded-[22px] border border-line/80 bg-white/75 p-4">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Risk notes</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">{dictionary.score.riskNotes}</h3>
         <ul className="mt-3 space-y-2 text-sm leading-6 text-muted">
           {score.risks.map((risk) => (
             <li key={risk}>• {risk}</li>
@@ -48,4 +52,3 @@ export function ScoreBreakdownCard({ score }: ScoreBreakdownCardProps) {
     </section>
   );
 }
-

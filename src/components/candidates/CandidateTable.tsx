@@ -1,39 +1,43 @@
 import Link from "next/link";
 
 import type { CandidateRecord } from "@/lib/candidates/types";
-import { formatCurrency, formatDate, formatPercent, titleCase } from "@/lib/formatters";
+import { formatCurrency, formatDate, formatPercent } from "@/lib/formatters";
+import { getConnectorLabel, getDictionary, getLocalePath, type AppLocale } from "@/lib/i18n";
 
 interface CandidateTableProps {
   candidates: CandidateRecord[];
+  locale: AppLocale;
 }
 
-function renderSignals(candidate: CandidateRecord) {
+function renderSignals(candidate: CandidateRecord, locale: AppLocale) {
   return candidate.signals.slice(0, 2).map((signal) => (
     <div key={signal.id} className="rounded-2xl border border-line/70 bg-white/70 px-3 py-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-          {titleCase(signal.connector)}
+          {getConnectorLabel(signal.connector, locale)}
         </span>
-        <span className="text-xs text-muted">{formatDate(signal.observedAt)}</span>
+        <span className="text-xs text-muted">{formatDate(signal.observedAt, locale)}</span>
       </div>
       <p className="mt-1 text-sm text-ink">{signal.summary}</p>
     </div>
   ));
 }
 
-export function CandidateTable({ candidates }: CandidateTableProps) {
+export function CandidateTable({ candidates, locale }: CandidateTableProps) {
+  const dictionary = getDictionary(locale);
+
   return (
     <div className="space-y-4">
       <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full border-separate border-spacing-y-3">
           <thead>
             <tr className="text-left text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-              <th className="px-3">Rank</th>
-              <th className="px-3">Candidate</th>
-              <th className="px-3">Source evidence</th>
-              <th className="px-3">Expected margin</th>
-              <th className="px-3">Expected profit</th>
-              <th className="px-3">Action</th>
+              <th className="px-3">{dictionary.table.rank}</th>
+              <th className="px-3">{dictionary.table.candidate}</th>
+              <th className="px-3">{dictionary.table.sourceEvidence}</th>
+              <th className="px-3">{dictionary.table.expectedMargin}</th>
+              <th className="px-3">{dictionary.table.expectedProfit}</th>
+              <th className="px-3">{dictionary.table.action}</th>
             </tr>
           </thead>
           <tbody>
@@ -52,7 +56,7 @@ export function CandidateTable({ candidates }: CandidateTableProps) {
                       </p>
                       <Link
                         className="mt-1 block text-lg font-semibold text-ink hover:text-accent"
-                        href={`/candidates/${candidate.slug}`}
+                        href={getLocalePath(locale, `/candidates/${candidate.slug}`)}
                       >
                         {candidate.title}
                       </Link>
@@ -61,49 +65,54 @@ export function CandidateTable({ candidates }: CandidateTableProps) {
                     <p className="max-w-md text-sm leading-6 text-muted">{candidate.shortDescription}</p>
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full bg-[#f7efe5] px-3 py-1 text-xs font-semibold text-muted">
-                        Score {candidate.score.total}
+                        {dictionary.table.scoreBadge(candidate.score.total)}
                       </span>
                       <span className="rounded-full bg-[#eff6ea] px-3 py-1 text-xs font-semibold text-success">
-                        {candidate.signals.length} signals
+                        {dictionary.table.signalsBadge(candidate.signals.length)}
                       </span>
                       <span className="rounded-full bg-[#f8f4ee] px-3 py-1 text-xs font-semibold text-muted">
-                        {candidate.externalLinks.length} links
+                        {dictionary.table.linksBadge(candidate.externalLinks.length)}
                       </span>
                     </div>
                   </div>
                 </td>
                 <td className="px-3 py-4 align-top">
                   <div className="space-y-2">
-                    {renderSignals(candidate)}
+                    {renderSignals(candidate, locale)}
                     <p className="text-sm text-muted">{candidate.score.summary}</p>
                   </div>
                 </td>
                 <td className="px-3 py-4 align-top">
                   <div className="space-y-2">
                     <p className="text-2xl font-semibold text-ink">
-                      {formatPercent(candidate.profit.marginRate)}
+                      {formatPercent(candidate.profit.marginRate, locale)}
                     </p>
                     <p className="text-sm text-muted">
-                      ROI {formatPercent(candidate.profit.roiRate)} on {formatCurrency(candidate.profit.costBasis)}
+                      {dictionary.table.roiSummary(
+                        formatPercent(candidate.profit.roiRate, locale),
+                        formatCurrency(candidate.profit.costBasis, locale),
+                      )}
                     </p>
                   </div>
                 </td>
                 <td className="px-3 py-4 align-top">
                   <div className="space-y-2">
                     <p className="text-2xl font-semibold text-ink">
-                      {formatCurrency(candidate.profit.netProfit)}
+                      {formatCurrency(candidate.profit.netProfit, locale)}
                     </p>
                     <p className="text-sm text-muted">
-                      Breakeven {formatCurrency(candidate.profit.breakevenSalePrice)}
+                      {dictionary.table.breakevenSummary(
+                        formatCurrency(candidate.profit.breakevenSalePrice, locale),
+                      )}
                     </p>
                   </div>
                 </td>
                 <td className="rounded-r-[24px] px-3 py-4 align-top">
                   <Link
                     className="inline-flex items-center rounded-2xl border border-line px-4 py-3 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
-                    href={`/candidates/${candidate.slug}`}
+                    href={getLocalePath(locale, `/candidates/${candidate.slug}`)}
                   >
-                    Review detail
+                    {dictionary.table.reviewDetail}
                   </Link>
                 </td>
               </tr>
@@ -118,7 +127,10 @@ export function CandidateTable({ candidates }: CandidateTableProps) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">{candidate.category}</p>
-                <Link className="mt-2 block text-xl font-semibold text-ink" href={`/candidates/${candidate.slug}`}>
+                <Link
+                  className="mt-2 block text-xl font-semibold text-ink"
+                  href={getLocalePath(locale, `/candidates/${candidate.slug}`)}
+                >
                   {candidate.title}
                 </Link>
                 <p className="mt-1 text-sm text-muted">{candidate.brand}</p>
@@ -132,22 +144,30 @@ export function CandidateTable({ candidates }: CandidateTableProps) {
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-[#f8f4ee] p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Margin</p>
-                <p className="mt-2 text-lg font-semibold text-ink">{formatPercent(candidate.profit.marginRate)}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                  {dictionary.table.margin}
+                </p>
+                <p className="mt-2 text-lg font-semibold text-ink">
+                  {formatPercent(candidate.profit.marginRate, locale)}
+                </p>
               </div>
               <div className="rounded-2xl bg-[#eff6ea] p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Profit</p>
-                <p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(candidate.profit.netProfit)}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                  {dictionary.table.profit}
+                </p>
+                <p className="mt-2 text-lg font-semibold text-ink">
+                  {formatCurrency(candidate.profit.netProfit, locale)}
+                </p>
               </div>
             </div>
 
-            <div className="mt-4 space-y-2">{renderSignals(candidate)}</div>
+            <div className="mt-4 space-y-2">{renderSignals(candidate, locale)}</div>
 
             <Link
               className="mt-5 inline-flex items-center rounded-2xl border border-line px-4 py-3 text-sm font-semibold text-ink"
-              href={`/candidates/${candidate.slug}`}
+              href={getLocalePath(locale, `/candidates/${candidate.slug}`)}
             >
-              Review detail
+              {dictionary.table.reviewDetail}
             </Link>
           </article>
         ))}
@@ -155,4 +175,3 @@ export function CandidateTable({ candidates }: CandidateTableProps) {
     </div>
   );
 }
-

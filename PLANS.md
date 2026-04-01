@@ -126,6 +126,7 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 ### Exit criteria
 - Another developer can clone the repo, boot mock mode, and understand the roadmap.
 - 2026-04-01: Added GitHub Actions CI, deployment-safe env handling, public-repo ignore rules, and GitHub + Vercel deployment documentation without changing the Milestone 0/1 product scope.
+- 2026-04-02: Added a Japanese-first UI at `/` with an English route at `/en`, keeping mock-first behavior and shared Milestone 0/1 functionality intact.
 
 ---
 
@@ -178,3 +179,4 @@ Record important architectural decisions here.
 - Milestone 0 and 1 runtime uses fixture-backed connectors even when live credentials are present; live adapter wiring remains scoped to Milestone 2.
 - No `vercel.json` is checked in because Vercel's default Next.js deployment behavior is sufficient for the current App Router setup.
 - Deployment and CI target Node 20 or 22 LTS to stay aligned with Vercel-supported runtimes.
+- Japanese is the default public UI language, while English remains available under the `/en` route family.

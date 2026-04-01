@@ -53,6 +53,7 @@ describe("scoreCandidate", () => {
       ],
       riskFlags: ["Restock risk remains elevated."],
       highMarginThreshold: 0.2,
+      locale: "en",
     });
 
     expect(score.total).toBe(76);
@@ -62,4 +63,3 @@ describe("scoreCandidate", () => {
     expect(score.risks).toHaveLength(1);
   });
 });
-
