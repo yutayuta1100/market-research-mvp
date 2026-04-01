@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum CandidateStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum LinkType {
+  OFFICIAL
+  PURCHASE
+  REFERENCE
+  RAFFLE
+}
+
+enum SignalSource {
+  X
+  AMAZON
+  KEEPA
+  MANUAL_IMPORT
+}
+
+model WatchProfile {
+  id         String      @id @default(cuid())
+  name       String
+  keywords   String[]
+  categories String[]
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  candidates Candidate[]
+}
+
+model Candidate {
+  id                 String          @id @default(cuid())
+  slug               String          @unique
+  title              String
+  brand              String?
+  category           String
+  thumbnailUrl       String?
+  shortDescription   String
+  status             CandidateStatus @default(ACTIVE)
+  estimatedBuyPrice  Decimal         @db.Decimal(10, 2)
+  estimatedSellPrice Decimal         @db.Decimal(10, 2)
+  platformFeeRate    Decimal         @db.Decimal(5, 4)
+  shippingCost       Decimal         @db.Decimal(10, 2)
+  otherCost          Decimal         @db.Decimal(10, 2)
+  expectedProfit     Decimal?        @db.Decimal(10, 2)
+  expectedMargin     Decimal?        @db.Decimal(6, 4)
+  score              Int?
+  scoreExplanation   Json?
+  riskNotes          String[]
+  watchProfileId     String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  watchProfile       WatchProfile?   @relation(fields: [watchProfileId], references: [id], onDelete: SetNull)
+  signals            Signal[]
+  externalLinks      ExternalLink[]
+}
+
+model Signal {
+  id           String       @id @default(cuid())
+  candidateId  String
+  source       SignalSource
+  keyword      String
+  category     String
+  metricLabel  String
+  metricValue  Decimal?     @db.Decimal(10, 2)
+  summary      String
+  observedAt   DateTime
+  referenceUrl String?
+  metadata     Json?
+  createdAt    DateTime     @default(now())
+  candidate    Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, source, observedAt])
+}
+
+model ExternalLink {
+  id          String    @id @default(cuid())
+  candidateId String
+  type        LinkType
+  label       String
+  url         String
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, type])
+}
+
