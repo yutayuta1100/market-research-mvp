@@ -1,6 +1,12 @@
 import { getCategoryLabel, getKeywordLabel, type AppLocale } from "@/lib/i18n";
 import { getMockSignalFixtures } from "@/lib/mock/fixtures";
-import type { ConnectorContext, ConnectorKind, ConnectorSignal, SignalConnector } from "@/lib/connectors/types";
+import type {
+  ConnectorContext,
+  ConnectorFetchResult,
+  ConnectorKind,
+  ConnectorSignal,
+  SignalConnector,
+} from "@/lib/connectors/types";
 
 function matchesContext(signal: ConnectorSignal, context: ConnectorContext, locale: AppLocale) {
   const localizedKeywords = context.keywords.map((keyword) => getKeywordLabel(keyword, locale).toLowerCase());
@@ -21,9 +27,16 @@ export function createMockConnector(
   return {
     kind,
     mode: "mock",
-    statusMessage,
-    async fetchSignals(context) {
-      return getMockSignalFixtures(locale)[kind].filter((signal) => matchesContext(signal, context, locale));
+    async fetchSignals(context): Promise<ConnectorFetchResult> {
+      return {
+        signals: getMockSignalFixtures(locale)[kind].filter((signal) => matchesContext(signal, context, locale)),
+        status: {
+          kind,
+          mode: "mock",
+          state: "ready",
+          statusMessage,
+        },
+      };
     },
   };
 }

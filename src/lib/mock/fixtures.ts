@@ -1,5 +1,5 @@
 import type { CandidateCatalogEntry, ExternalLink } from "@/lib/candidates/types";
-import type { ConnectorKind, ConnectorSignal } from "@/lib/connectors/types";
+import type { ConnectorKind, ConnectorSignal, WatchTarget } from "@/lib/connectors/types";
 import { getCategoryLabel, getKeywordLabel, type AppLocale } from "@/lib/i18n";
 
 type LocalizedText = Record<AppLocale, string>;
@@ -14,6 +14,8 @@ interface CandidateCatalogSource
   title: LocalizedText;
   brand: LocalizedText;
   categoryKey: string;
+  displayKeyword: LocalizedText;
+  xQueryTerms: string[];
   shortDescription: LocalizedText;
   riskFlags: LocalizedText[];
   externalLinks: LocalizedExternalLink[];
@@ -44,6 +46,11 @@ const candidateCatalogSource: CandidateCatalogSource[] = [
       en: "Aurora Audio",
     },
     categoryKey: "audio",
+    displayKeyword: {
+      ja: "Aurora ヘッドホン",
+      en: "Aurora headphones",
+    },
+    xQueryTerms: ['"Aurora Studio"', '"Aurora Audio"', "headphones"],
     thumbnailUrl:
       "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
     shortDescription: {
@@ -114,6 +121,11 @@ const candidateCatalogSource: CandidateCatalogSource[] = [
       en: "Nova",
     },
     categoryKey: "gaming",
+    displayKeyword: {
+      ja: "Nova 携帯ゲーム機",
+      en: "Nova handheld",
+    },
+    xQueryTerms: ['"Nova Pocket"', '"Nova"', '"retro console"', "handheld"],
     thumbnailUrl:
       "https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=1200&q=80",
     shortDescription: {
@@ -184,6 +196,11 @@ const candidateCatalogSource: CandidateCatalogSource[] = [
       en: "Summit",
     },
     categoryKey: "power",
+    displayKeyword: {
+      ja: "Summit モバイルバッテリー",
+      en: "Summit power bank",
+    },
+    xQueryTerms: ['"Summit 27.5K"', '"Summit"', '"power bank"', '"travel battery"'],
     thumbnailUrl:
       "https://images.unsplash.com/photo-1587033411391-5d9e51cce126?auto=format&fit=crop&w=1200&q=80",
     shortDescription: {
@@ -254,6 +271,11 @@ const candidateCatalogSource: CandidateCatalogSource[] = [
       en: "Mythic Forge",
     },
     categoryKey: "collectibles",
+    displayKeyword: {
+      ja: "Mythic ブースターボックス",
+      en: "Mythic booster box",
+    },
+    xQueryTerms: ['"Mythic Collector Booster"', '"Mythic Forge"', '"booster box"'],
     thumbnailUrl:
       "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=1200&q=80",
     shortDescription: {
@@ -515,6 +537,15 @@ export function getCandidateCatalog(locale: AppLocale): CandidateCatalogEntry[] 
       url: link.url,
       notes: link.notes ? pickText(link.notes, locale) : undefined,
     })),
+  }));
+}
+
+export function getWatchTargets(locale: AppLocale): WatchTarget[] {
+  return candidateCatalogSource.map((candidate) => ({
+    candidateSlug: candidate.slug,
+    displayKeyword: pickText(candidate.displayKeyword, locale),
+    category: getCategoryLabel(candidate.categoryKey, locale),
+    xQueryTerms: candidate.xQueryTerms,
   }));
 }
 

@@ -24,20 +24,24 @@ External links in the UI are references only. The app never interacts with purch
 
 ## Current status
 
-Milestone 0 and Milestone 1 are implemented in a mock-first form:
+Milestone 0, Milestone 1, and Milestone 2 are implemented:
 - Next.js 15 + TypeScript + Tailwind app scaffold
-- Prisma schema skeleton for watch profiles, candidates, signals, and external links
+- Prisma schema for watch profiles, candidates, signals, and external links
 - Docker Compose config for local PostgreSQL
 - environment parsing with deployment-safe defaults
-- mock connector registry for X, Amazon, and Keepa
+- connector registry with `mock`, `live`, and `stub` modes
+- live X recent-counts adapter behind feature flag + bearer token
+- Amazon and Keepa stub adapters behind feature flags
 - dashboard with filtering and sorting
 - candidate detail page with explainable scoring
 - manual external-link registry UI
 - manual profit calculator
-- focused Vitest coverage for profit math, scoring, and connector fallback behavior
+- optional snapshot persistence when `DATABASE_URL` is present
+- structured connector degradation logging and status reporting
+- focused Vitest coverage for profit math, scoring, connector fallback, live X normalization, and optional persistence
 - GitHub Actions CI for pull requests and pushes to `main`
 
-Live connector execution is intentionally deferred to Milestone 2. If credentials are unavailable, the app stays fully runnable in mock mode for local, preview, and production deployments.
+The app remains fully runnable in mock mode for local, preview, and production deployments. When X credentials are unavailable, the X connector falls back safely without blocking the UI.
 
 ## UI languages
 
@@ -47,7 +51,7 @@ Live connector execution is intentionally deferred to Milestone 2. If credential
   - Japanese: `/candidates/[slug]`
   - English: `/en/candidates/[slug]`
 
-The bilingual UI remains mock-first in both routes. Language switching changes copy, mock data descriptions, connector status text, and explainable score messaging without altering the market-research-only product scope.
+The bilingual UI remains safe for public deployment in both routes. Language switching changes copy, mock data descriptions, connector status text, and explainable score messaging without altering the market-research-only product scope.
 
 ## Stack
 
@@ -96,7 +100,17 @@ Use Node.js 20 or 22 LTS.
    npm run dev
    ```
 
-The dashboard boots without live API keys as long as `USE_MOCK_PROVIDERS=true`, which is the recommended default for local and preview environments.
+The dashboard boots without live API keys as long as `USE_MOCK_PROVIDERS=true`, which remains the recommended default for local and preview environments.
+
+To exercise the Milestone 2 live X adapter locally:
+
+```bash
+USE_MOCK_PROVIDERS=false
+ENABLE_X_CONNECTOR=true
+X_BEARER_TOKEN=your_token_here
+```
+
+Amazon and Keepa can also be enabled, but in Milestone 2 they surface as explicit `stub` connectors rather than making live requests.
 
 ## Validation commands
 
@@ -125,14 +139,16 @@ npm run db:push
 
 The app uses explicit Zod parsing in [src/lib/config/env.ts](/Users/onoe/Desktop/転売ヤー/src/lib/config/env.ts). Empty strings are treated as missing values, booleans must be `true` or `false`, and `APP_URL` falls back to `VERCEL_URL` in Vercel or `http://localhost:3000` locally.
 
-### Needed now
+### Always relevant
 
 - `APP_NAME`
   Optional in all environments. Defaults to `market-research-mvp`.
 - `APP_URL`
   Recommended in Production. Preview deployments can omit it and let Vercel provide the host via `VERCEL_URL`.
+- `LOG_LEVEL`
+  Optional. Defaults to `info`.
 - `USE_MOCK_PROVIDERS`
-  Recommended `true` in Development and Preview. Production can also keep this `true` until live adapters are implemented.
+  Recommended `true` in Development and Preview. Production can also keep this `true` when you want a safe fixture-backed deployment.
 - `DEFAULT_PLATFORM_FEE_RATE`
 - `DEFAULT_SHIPPING_COST`
 - `DEFAULT_OTHER_COST`
@@ -140,16 +156,36 @@ The app uses explicit Zod parsing in [src/lib/config/env.ts](/Users/onoe/Desktop
 - `MOCK_WATCH_KEYWORDS`
 - `MOCK_WATCH_CATEGORIES`
 
-### Optional now, required later for live/runtime expansion
+### Optional for Milestone 2 live X
+
+- `ENABLE_X_CONNECTOR`
+- `X_BEARER_TOKEN`
+- `X_REQUEST_TIMEOUT_MS`
+- `X_DEFAULT_QUERY_WINDOW_DAYS`
+- `X_DEFAULT_LOCALE`
+
+Live X runs only when all of the following are true:
+- `USE_MOCK_PROVIDERS=false`
+- `ENABLE_X_CONNECTOR=true`
+- `X_BEARER_TOKEN` is set
+
+If any of those are missing, the app continues safely in mock mode for X.
+
+### Optional for snapshot persistence
 
 - `DATABASE_URL`
 - `DIRECT_URL`
-- `X_BEARER_TOKEN`
+
+When `DATABASE_URL` is available, the app will upsert a default watch profile plus candidate, external-link, and signal snapshots after runtime assembly. When it is absent, persistence is skipped and the UI still works.
+
+### Present but still deferred for later live adapters
+
+- `ENABLE_AMAZON_CONNECTOR`
 - `AMAZON_ACCESS_KEY_ID`
 - `AMAZON_SECRET_ACCESS_KEY`
 - `KEEPA_API_KEY`
 
-These can be stored in Vercel today, but Milestone 0 and Milestone 1 still fall back safely to mock fixtures even if keys are absent or feature flags remain disabled.
+In Milestone 2, Amazon and Keepa can be turned on to show explicit `stub` connector states, but they do not make live API calls yet.
 
 ### Recommended Vercel environment posture
 
@@ -158,9 +194,9 @@ These can be stored in Vercel today, but Milestone 0 and Milestone 1 still fall 
 - Preview:
   `USE_MOCK_PROVIDERS=true`
 - Production:
-  `USE_MOCK_PROVIDERS=true` until you intentionally begin Milestone 2 live-adapter work
+  `USE_MOCK_PROVIDERS=true` for the safest public deployment, or disable it only when you intentionally want live X
 
-For current deployments, database variables may be left unset if you are only using the mock-first UI.
+For current deployments, database variables may be left unset if you do not want snapshot persistence.
 
 ## GitHub setup
 
@@ -206,16 +242,17 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 ## Preview vs production behavior
 
 - Preview deployments should stay safe and demo-friendly by keeping `USE_MOCK_PROVIDERS=true`.
-- Production can also remain in mock mode until live connectors are intentionally implemented.
-- Missing API keys in Preview should not block deployments; the app will continue using fixture-backed connectors.
-- Missing database credentials should not block the current mock-first deployment path because the live runtime does not depend on Prisma reads or writes yet.
+- Production can also remain in mock mode indefinitely.
+- Missing X keys in Preview should not block deployments; the app will continue using fixture-backed connectors.
+- Missing database credentials should not block deployments because snapshot persistence is optional in Milestone 2.
+- Enabling Amazon or Keepa without later-milestone implementations will show a `stub` status instead of making live requests.
 
 ## Prisma and database notes
 
 - Prisma is configured and generated during install so Vercel builds remain predictable.
 - `docker-compose.yml` only helps local development.
-- Vercel does not provide PostgreSQL by itself. When database-backed runtime features are introduced, use an external managed Postgres service and set `DATABASE_URL` and `DIRECT_URL` in Vercel.
-- Until then, Preview and Production deployments can remain database-free while the app runs in mock mode.
+- Vercel does not provide PostgreSQL by itself. For Milestone 2 snapshot persistence, use an external managed Postgres service and set `DATABASE_URL` and `DIRECT_URL` in Vercel.
+- The UI does not read back from Prisma yet, so Preview and Production can remain database-free while the app runs in mock mode or live-X-without-persistence mode.
 
 ## Troubleshooting
 
@@ -224,9 +261,13 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 - Local lint or typecheck behaves differently from GitHub Actions:
   This repo is pinned to Node 20 or 22 LTS for GitHub and Vercel compatibility. Node 25 is outside the supported range.
 - Vercel preview deploys but no live data appears:
-  Expected for Milestone 0 and 1. Mock connectors remain active until live adapters are implemented in a later milestone.
+  Check `USE_MOCK_PROVIDERS=false`, `ENABLE_X_CONNECTOR=true`, and `X_BEARER_TOKEN`. If any are missing, X will stay in mock fallback mode.
+- Amazon or Keepa shows `stub` instead of live data:
+  Expected in Milestone 2. Those adapters are intentionally feature-flagged stubs right now.
 - Prisma-related deploy failures:
-  For current mock-first deployments, leave database runtime features disabled and only set `DATABASE_URL` when you actually need database-backed behavior.
+  Snapshot persistence is optional. Remove or fix `DATABASE_URL` / `DIRECT_URL`, or leave them unset if you do not need persistence yet.
+- Snapshot persistence does not seem to run:
+  Ensure `DATABASE_URL` is set and test the default Japanese route first. Milestone 2 intentionally skips duplicate writes from the secondary locale route.
 - GitHub Actions or Vercel uses a different Node version:
   Use Node 20 or 22 LTS locally and keep Vercel on a supported LTS release.
 - Docker commands do not work in deployment:
@@ -234,8 +275,10 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 
 ## Routes
 
-- `/` — dashboard with watchlists, connector status, filtering, sorting, and ranked candidates
-- `/candidates/[slug]` — candidate detail page with source signals, score breakdown, reference links, and profit calculator
+- `/` — Japanese dashboard with watchlists, connector status, filtering, sorting, and ranked candidates
+- `/en` — English dashboard
+- `/candidates/[slug]` — Japanese candidate detail page with source signals, score breakdown, reference links, and profit calculator
+- `/en/candidates/[slug]` — English candidate detail page
 
 ## Project structure
 
@@ -258,17 +301,17 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 
 ## Architecture notes
 
-- `src/lib/connectors` contains connector interfaces and the mock registry.
+- `src/lib/connectors` contains connector interfaces plus mock, live, and stub adapter implementations.
 - `src/lib/candidates` assembles dashboard-ready records from fixtures, signals, scoring, and profit math.
+- `src/lib/candidates/persistence.ts` optionally snapshots assembled records into Prisma without making the database mandatory.
 - `src/lib/scoring` and `src/lib/profit` hold pure logic suitable for focused tests.
 - `src/lib/config/env.ts` centralizes deployment-safe environment parsing and defaulting.
-- Prisma is configured now even though the Milestone 1 runtime still uses fixtures to preserve mock-mode reliability.
+- Prisma remains optional at runtime so mock mode stays reliable in local, preview, and production deployments.
 
 ## Next milestone
 
-Milestone 2 adds live or fixture-backed source ingestion behind the existing connector boundary:
-- X trend adapter
-- Amazon category adapter
-- Keepa or price-history adapter
-- snapshot persistence
-- clearer logging around adapter failures
+Milestone 3 focuses on scoring improvements on top of the current adapter layer:
+- richer scoring inputs
+- clearer explanation payloads
+- more explicit risk deductions
+- additional score-oriented test coverage

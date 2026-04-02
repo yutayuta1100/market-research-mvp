@@ -25,16 +25,29 @@ export function ConnectorStatusCard({ connectorStatuses, locale }: ConnectorStat
         {connectorStatuses.map((connector) => (
           <div
             key={connector.kind}
-            className="rounded-[22px] border border-line/80 bg-white/75 p-4"
+            className={`rounded-[22px] border bg-white/75 p-4 ${
+              connector.state === "degraded" ? "border-warning/50" : "border-line/80"
+            }`}
           >
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-ink">{getConnectorLabel(connector.kind, locale)}</p>
                 <p className="mt-1 text-sm leading-6 text-muted">{connector.statusMessage}</p>
               </div>
-              <span className="rounded-full bg-accentSoft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                {dictionary.connectorStatus.modeBadge}
-              </span>
+              <div className="flex flex-col items-end gap-2">
+                <span className="rounded-full bg-accentSoft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+                  {dictionary.connectorStatus.modeLabels[connector.mode]}
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                    connector.state === "degraded"
+                      ? "bg-[#fbede4] text-warning"
+                      : "bg-[#eff6ea] text-success"
+                  }`}
+                >
+                  {dictionary.connectorStatus.stateLabels[connector.state]}
+                </span>
+              </div>
             </div>
           </div>
         ))}

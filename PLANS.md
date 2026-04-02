@@ -64,16 +64,17 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 **Goal:** Add real or semi-real data ingestion behind adapters.
 
 ### Deliverables
-- [ ] adapter interface defined
-- [ ] mock adapter implemented
-- [ ] X trend adapter implemented or stubbed behind feature flag
-- [ ] Amazon category adapter implemented or stubbed behind feature flag
-- [ ] price-history adapter implemented or stubbed behind feature flag
-- [ ] snapshot persistence implemented
-- [ ] adapter errors logged clearly
+- [x] adapter interface defined
+- [x] mock adapter implemented
+- [x] X trend adapter implemented or stubbed behind feature flag
+- [x] Amazon category adapter implemented or stubbed behind feature flag
+- [x] price-history adapter implemented or stubbed behind feature flag
+- [x] snapshot persistence implemented
+- [x] adapter errors logged clearly
 
 ### Exit criteria
 - At least one live or fixture-backed adapter can populate normalized data without breaking local dev.
+- 2026-04-02: Added connector mode/state typing, watch-target metadata, a live X recent-counts adapter, Amazon/Keepa stub adapters, degraded-status logging, `Promise.allSettled` assembly, and optional Prisma snapshot persistence while keeping mock mode as the default-safe runtime path.
 
 ---
 
@@ -167,6 +168,7 @@ Validate after changes and update docs or PLANS.md if needed.
 Add dated notes here when blocked.
 
 - 2026-04-01: `docker compose config` could not be run in this workspace because the `docker` CLI is not installed.
+- 2026-04-02: Multiple local Node-based validation commands (`eslint`, `tsc --noEmit`, `vitest`, `next`, and `prisma generate`) hung in this workspace even after installing Homebrew Node 22.22.2, so Milestone 2 validation could not be completed locally.
 
 ---
 
@@ -176,7 +178,9 @@ Record important architectural decisions here.
 
 - Initial product boundary excludes automation that executes purchases or enters raffles automatically.
 - MVP should remain explainable and mock-first.
-- Milestone 0 and 1 runtime uses fixture-backed connectors even when live credentials are present; live adapter wiring remains scoped to Milestone 2.
+- Milestone 0 and 1 runtime uses fixture-backed connectors by default, and Milestone 2 keeps that mock-first posture unless live X is explicitly enabled with credentials.
+- Milestone 2 enables live X only when mock mode is disabled and a bearer token is configured; Amazon and Keepa remain explicit stubs behind their feature flags.
+- Milestone 2 snapshot persistence is optional and only runs when `DATABASE_URL` is configured, so Vercel deployments can stay database-free.
 - No `vercel.json` is checked in because Vercel's default Next.js deployment behavior is sufficient for the current App Router setup.
 - Deployment and CI target Node 20 or 22 LTS to stay aligned with Vercel-supported runtimes.
 - Japanese is the default public UI language, while English remains available under the `/en` route family.

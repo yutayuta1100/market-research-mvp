@@ -1,4 +1,8 @@
-import type { ConnectorKind, ConnectorSignal } from "@/lib/connectors/types";
+import type {
+  ConnectorKind,
+  ConnectorSignal,
+  ConnectorStatus as BaseConnectorStatus,
+} from "@/lib/connectors/types";
 
 export type ExternalLinkType = "official" | "purchase" | "reference" | "raffle";
 export type CandidateSortOption = "score" | "margin" | "profit" | "recent";
@@ -55,11 +59,7 @@ export interface ScoreBreakdown {
   risks: string[];
 }
 
-export interface ConnectorStatus {
-  kind: ConnectorKind;
-  mode: "mock";
-  statusMessage: string;
-}
+export type ConnectorStatus = BaseConnectorStatus;
 
 export interface CandidateRecord extends CandidateCatalogEntry {
   lastObservedAt: string | null;
@@ -74,4 +74,3 @@ export interface CandidateFilters {
   source?: ConnectorKind | "all";
   sort?: CandidateSortOption;
 }
-

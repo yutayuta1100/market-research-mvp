@@ -106,20 +106,20 @@ const dictionaries = {
       en: "English",
     },
     dashboard: {
-      heroBadge: "Milestone 0 + 1 MVP",
+      heroBadge: "Milestone 2 MVP",
       heroTitle: "モック中心のリセール調査ボード",
       heroDescription:
-        "公開シグナルの調査、参考リンクの整理、説明可能な利益試算を行うオペレーター向けダッシュボードです。購入リンク・公式リンク・抽選リンクは参考表示のみです。",
+        "公開シグナル、公式 API アダプタ、参考リンクを使って候補を比較するオペレーター向けダッシュボードです。購入リンク・公式リンク・抽選リンクは参考表示のみです。",
       metricCandidates: "候補",
       metricWatchKeywords: "監視キーワード",
       metricConnectors: "コネクタ",
       workspaceEyebrow: "候補ワークスペース",
       workspaceTitle: "ランク付けされた候補",
       workspaceDescription:
-        "スコア、利益率、利益額、更新時刻で並び替えできます。カテゴリやコネクタで絞り込んでも、モックモードのまま動作します。",
+        "スコア、利益率、利益額、更新時刻で並び替えできます。カテゴリやコネクタで絞り込みながら、mock / live / stub の接続状態を確認できます。",
       emptyTitle: "条件に一致する候補はありません",
       emptyDescription:
-        "検索語、カテゴリ、ソースの条件を広げると、モック候補が再び表示されます。",
+        "検索語、カテゴリ、ソースの条件を広げると、候補が再び表示されます。",
       watchlistsEyebrow: "監視設定",
       watchlistsTitle: "キーワードとカテゴリ",
       keywordsLabel: "キーワード",
@@ -154,14 +154,22 @@ const dictionaries = {
     },
     connectorStatus: {
       eyebrow: "コネクタ状態",
-      title: "モック中心のソース状態",
-      milestoneBadge: "Milestone 1",
-      modeBadge: "モック",
+      title: "ソース接続状態",
+      milestoneBadge: "Milestone 2",
+      modeLabels: {
+        mock: "モック",
+        live: "ライブ",
+        stub: "スタブ",
+      },
+      stateLabels: {
+        ready: "正常",
+        degraded: "劣化",
+      },
     },
     detail: {
       backToDashboard: "← ダッシュボードへ戻る",
       referenceLinksOnly: "リンクは参考表示のみ",
-      mockSignals: (count: number) => `モックシグナル ${count}件`,
+      signalCountBadge: (count: number) => `シグナル ${count}件`,
       latestActivity: (date: string) => `最新更新 ${date}`,
       expectedMargin: "想定利益率",
       expectedProfit: "想定利益",
@@ -169,7 +177,7 @@ const dictionaries = {
       feeBaseline: "手数料基準",
       sourceSignalsEyebrow: "ソースシグナル",
       sourceSignalsTitle: "この候補が浮上した理由",
-      mockFeedBadge: "モックフィード",
+      adapterFeedBadge: "アダプタフィード",
       signalContext: (keyword: string, category: string, date: string) =>
         `キーワード「${keyword}」が ${category} で ${date} 時点に観測されました。`,
       openReference: "参考リンクを開く",
@@ -219,34 +227,34 @@ const dictionaries = {
     },
     notFound: {
       eyebrow: "見つかりません",
-      title: "この候補は現在のモックデータセットにありません。",
+      title: "この候補は現在のデータセットにありません。",
       description: "ダッシュボードに戻って、現在の候補と参考リンクを確認してください。",
       cta: "ダッシュボードへ戻る",
     },
   },
   en: {
     metadataDescription:
-      "Mock-first market research dashboard for identifying potentially profitable resale opportunities using public signals and reference links.",
+      "Market research dashboard for identifying potentially profitable resale opportunities using public signals, official adapters, and reference links.",
     languageSwitcher: {
       label: "Language",
       ja: "日本語",
       en: "English",
     },
     dashboard: {
-      heroBadge: "Milestone 0 + 1 MVP",
+      heroBadge: "Milestone 2 MVP",
       heroTitle: "Mock-first resale research board",
       heroDescription:
-        "Operator-facing dashboard for public-signal research, manual link review, and explainable profit estimates. Purchase, official, and raffle links are shown strictly as references.",
+        "Operator-facing dashboard for public-signal research, official adapter inputs, manual link review, and explainable profit estimates. Purchase, official, and raffle links are shown strictly as references.",
       metricCandidates: "Candidates",
       metricWatchKeywords: "Watch keywords",
       metricConnectors: "Connectors",
       workspaceEyebrow: "Candidate workspace",
       workspaceTitle: "Ranked opportunities",
       workspaceDescription:
-        "Sort by score, margin, profit, or recency. Filter by category and connector without leaving mock mode.",
+        "Sort by score, margin, profit, or recency. Filter by category and connector while keeping mock, live, and stub connector states visible.",
       emptyTitle: "No candidates matched these filters",
       emptyDescription:
-        "Try widening the search, category, or source filters to bring mock candidates back into view.",
+        "Try widening the search, category, or source filters to bring candidates back into view.",
       watchlistsEyebrow: "Configured watchlists",
       watchlistsTitle: "Keywords and categories",
       keywordsLabel: "Keywords",
@@ -281,14 +289,22 @@ const dictionaries = {
     },
     connectorStatus: {
       eyebrow: "Connector posture",
-      title: "Mock-first source health",
-      milestoneBadge: "Milestone 1",
-      modeBadge: "Mock",
+      title: "Source connector health",
+      milestoneBadge: "Milestone 2",
+      modeLabels: {
+        mock: "Mock",
+        live: "Live",
+        stub: "Stub",
+      },
+      stateLabels: {
+        ready: "Ready",
+        degraded: "Degraded",
+      },
     },
     detail: {
       backToDashboard: "← Back to dashboard",
       referenceLinksOnly: "Reference links only",
-      mockSignals: (count: number) => `${count} live mock signals`,
+      signalCountBadge: (count: number) => `${count} signals`,
       latestActivity: (date: string) => `Latest activity ${date}`,
       expectedMargin: "Expected margin",
       expectedProfit: "Expected profit",
@@ -296,7 +312,7 @@ const dictionaries = {
       feeBaseline: "Fee baseline",
       sourceSignalsEyebrow: "Source signals",
       sourceSignalsTitle: "Why this candidate surfaced",
-      mockFeedBadge: "Mock feed",
+      adapterFeedBadge: "Adapter feed",
       signalContext: (keyword: string, category: string, date: string) =>
         `Keyword ${keyword} in ${category} as of ${date}.`,
       openReference: "Open reference",
@@ -346,7 +362,7 @@ const dictionaries = {
     },
     notFound: {
       eyebrow: "Not found",
-      title: "That candidate is not in the current mock dataset.",
+      title: "That candidate is not in the current dataset.",
       description:
         "Head back to the dashboard to review the active opportunities and their reference links.",
       cta: "Return to dashboard",

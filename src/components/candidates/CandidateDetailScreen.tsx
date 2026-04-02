@@ -51,7 +51,7 @@ export async function CandidateDetailScreen({
 
             <div className="mt-6 flex flex-wrap gap-2">
               <span className="pill">{dictionary.detail.referenceLinksOnly}</span>
-              <span className="pill">{dictionary.detail.mockSignals(candidate.signals.length)}</span>
+              <span className="pill">{dictionary.detail.signalCountBadge(candidate.signals.length)}</span>
               <span className="pill">{dictionary.detail.latestActivity(formatDate(candidate.lastObservedAt, locale))}</span>
             </div>
           </div>
@@ -101,7 +101,7 @@ export async function CandidateDetailScreen({
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ink">{dictionary.detail.sourceSignalsTitle}</h2>
           </div>
-          <span className="pill">{dictionary.detail.mockFeedBadge}</span>
+          <span className="pill">{dictionary.detail.adapterFeedBadge}</span>
         </div>
 
         <div className="mt-6 grid gap-4">

@@ -1,9 +1,11 @@
+import { persistCandidateSnapshot } from "@/lib/candidates/persistence";
 import type { CandidateFilters, CandidateRecord, CandidateSortOption, ConnectorStatus } from "@/lib/candidates/types";
 import { watchConfig } from "@/lib/config/watch-config";
 import { buildSignalConnectors } from "@/lib/connectors/registry";
 import type { ConnectorSignal } from "@/lib/connectors/types";
 import { getCategoryLabel, getKeywordLabel, type AppLocale } from "@/lib/i18n";
-import { getCandidateCatalog } from "@/lib/mock/fixtures";
+import { createLogger } from "@/lib/logger";
+import { getCandidateCatalog, getWatchTargets } from "@/lib/mock/fixtures";
 import { calculateProfit } from "@/lib/profit/calculate-profit";
 import { scoreCandidate } from "@/lib/scoring/score-candidate";
 import { env } from "@/lib/config/env";
@@ -15,6 +17,8 @@ export interface DashboardData {
   connectorStatuses: ConnectorStatus[];
   categories: string[];
 }
+
+const logger = createLogger(env.LOG_LEVEL);
 
 function getLatestObservedAt(signals: ConnectorSignal[]) {
   if (signals.length === 0) {
@@ -73,18 +77,52 @@ function filterCandidates(candidates: CandidateRecord[], filters: CandidateFilte
 function buildCandidateRecords(locale: AppLocale) {
   const localizedCatalog = getCandidateCatalog(locale);
   const connectors = buildSignalConnectors(undefined, locale);
-  const connectorStatuses: ConnectorStatus[] = connectors.map((connector) => ({
-    kind: connector.kind,
-    mode: connector.mode,
-    statusMessage: connector.statusMessage,
-  }));
+  const connectorContext = {
+    ...watchConfig,
+    targets: getWatchTargets(locale),
+  };
 
-  return Promise.all(connectors.map((connector) => connector.fetchSignals(watchConfig))).then((batches) => {
+  return Promise.allSettled(connectors.map((connector) => connector.fetchSignals(connectorContext))).then(async (batches) => {
     const groupedSignals = new Map<string, ConnectorSignal[]>();
+    const connectorStatuses: ConnectorStatus[] = batches.map((result, index) => {
+      const connector = connectors[index];
 
-    batches.flat().forEach((signal) => {
-      const existingSignals = groupedSignals.get(signal.candidateSlug) ?? [];
-      groupedSignals.set(signal.candidateSlug, [...existingSignals, signal]);
+      if (!connector) {
+        return {
+          kind: "x",
+          mode: "mock",
+          state: "degraded",
+          statusMessage:
+            locale === "ja"
+              ? "不明なコネクタ状態です。"
+              : "Unknown connector state.",
+        };
+      }
+
+      if (result.status === "rejected") {
+        logger.warn("Connector fetch rejected unexpectedly", {
+          connector: connector.kind,
+          mode: connector.mode,
+          error: logger.formatError(result.reason),
+        });
+
+        return {
+          kind: connector.kind,
+          mode: connector.mode,
+          state: "degraded",
+          statusMessage:
+            locale === "ja"
+              ? `${connector.kind} コネクタが失敗したため、このソースは空の結果になりました。`
+              : `${connector.kind} connector failed unexpectedly, so this source returned no results.`,
+        };
+      }
+
+      result.value.signals.forEach((signal) => {
+        const existingSignals = groupedSignals.get(signal.candidateSlug) ?? [];
+        groupedSignals.set(signal.candidateSlug, [...existingSignals, signal]);
+      });
+
+      return result.value.status;
     });
 
     const candidates = localizedCatalog.map((candidate) => {
@@ -113,6 +151,11 @@ function buildCandidateRecords(locale: AppLocale) {
         profit,
         score,
       };
+    });
+
+    await persistCandidateSnapshot({
+      candidates,
+      locale,
     });
 
     return {
