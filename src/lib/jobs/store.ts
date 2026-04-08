@@ -183,7 +183,7 @@ export async function listJobRuns(limit = 10): Promise<JobRunRecord[]> {
       limit,
     );
 
-    return rows.map(normalizeJobRun);
+    return rows.map(normalizeJobRunRow);
   } catch (error) {
     logger.warn("Job run query failed; falling back to memory records.", {
       error: logger.formatError(error),

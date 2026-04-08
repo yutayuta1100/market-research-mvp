@@ -77,10 +77,9 @@ export async function persistCandidateSnapshot(args: {
   candidates: CandidateRecord[];
   locale: AppLocale;
 }, dependencies: PersistCandidateSnapshotDependencies = {}) {
-  const databaseConfigured =
-    dependencies.databaseConfigured ??
-    (typeof isDatabaseConfigured === "function" ? isDatabaseConfigured() : isDatabaseConfigured);
-  const prismaClientFactory = dependencies.getClient ?? getPrismaClient;
+  const databaseConfigured = dependencies.databaseConfigured ?? isDatabaseConfigured;
+  const prismaClientFactory: () => SnapshotPrismaClient =
+    dependencies.getClient ?? (() => getPrismaClient() as SnapshotPrismaClient);
   const activeLogger = dependencies.logger ?? logger;
 
   if (!databaseConfigured || args.locale !== defaultLocale) {

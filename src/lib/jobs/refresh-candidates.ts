@@ -92,6 +92,12 @@ export async function runCandidateRefresh(
     return jobRun;
   } catch (error) {
     const finishedAt = now();
+    const jobError =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(activeLogger.formatError(error));
     const jobRun: JobRunRecord = {
       id: createStableId("job-run", "candidate-refresh", trigger, startedAt.toISOString(), locale, "failed"),
       jobName: "candidate-refresh",
@@ -104,7 +110,7 @@ export async function runCandidateRefresh(
       candidateCount: 0,
       signalCount: 0,
       connectorSummary: [],
-      error: activeLogger.formatError(error),
+      error: jobError,
       notes: "Refresh failed after exhausting the configured retry policy.",
       createdAt: finishedAt.toISOString(),
     };
