@@ -52,10 +52,27 @@ export interface ScoreComponent {
   rationale: string;
 }
 
+export interface ScoreInputMetric {
+  key: string;
+  label: string;
+  value: string;
+}
+
+export interface ScoreDeduction {
+  key: string;
+  label: string;
+  value: number;
+  rationale: string;
+}
+
 export interface ScoreBreakdown {
   total: number;
+  band: "high" | "medium" | "low";
   summary: string;
+  recommendation: string;
   components: ScoreComponent[];
+  inputs: ScoreInputMetric[];
+  deductions: ScoreDeduction[];
   risks: string[];
 }
 

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { CandidateTable } from "@/components/candidates/CandidateTable";
 import { ConnectorStatusCard } from "@/components/candidates/ConnectorStatusCard";
 import { DashboardFilters } from "@/components/candidates/DashboardFilters";
@@ -5,7 +7,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { loadDashboardData } from "@/lib/candidates/service";
 import type { CandidateFilters } from "@/lib/candidates/types";
-import { getDictionary, type AppLocale } from "@/lib/i18n";
+import { getDictionary, getLocalePath, type AppLocale } from "@/lib/i18n";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -48,6 +50,12 @@ export async function DashboardScreen({
 
           <div className="flex flex-col items-start gap-4 lg:items-end">
             <LanguageSwitcher enHref="/en" jaHref="/" locale={locale} />
+            <Link
+              className="inline-flex items-center rounded-2xl border border-line px-4 py-3 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
+              href={getLocalePath(locale, "/admin")}
+            >
+              {dictionary.dashboard.adminLink}
+            </Link>
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="metric-card min-w-[160px]">

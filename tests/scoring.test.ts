@@ -54,12 +54,37 @@ describe("scoreCandidate", () => {
       riskFlags: ["Restock risk remains elevated."],
       highMarginThreshold: 0.2,
       locale: "en",
+      now: new Date("2026-03-31T13:00:00+09:00"),
     });
 
-    expect(score.total).toBe(76);
-    expect(score.summary).toContain("Strong mock candidate");
+    expect(score.total).toBe(71);
+    expect(score.summary).toContain("Strong candidate");
+    expect(score.band).toBe("medium");
     expect(score.components).toHaveLength(5);
+    expect(score.inputs).toHaveLength(6);
+    expect(score.deductions).toHaveLength(2);
     expect(score.components[0]?.label).toBe("Signal strength");
     expect(score.risks).toHaveLength(1);
+  });
+
+  it("applies evidence deductions when no active signals are available", () => {
+    const score = scoreCandidate({
+      profit: calculateProfit({
+        buyPrice: 12000,
+        sellPrice: 15000,
+        platformFeeRate: 0.1,
+        shippingCost: 600,
+        otherCost: 0,
+      }),
+      signals: [],
+      riskFlags: [],
+      highMarginThreshold: 0.2,
+      locale: "en",
+      now: new Date("2026-03-31T13:00:00+09:00"),
+    });
+
+    expect(score.band).toBe("low");
+    expect(score.deductions[1]?.value).toBe(-10);
+    expect(score.recommendation).toContain("watch mode");
   });
 });

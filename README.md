@@ -24,7 +24,7 @@ External links in the UI are references only. The app never interacts with purch
 
 ## Current status
 
-Milestone 0, Milestone 1, and Milestone 2 are implemented:
+Milestone 0 through Milestone 5 are implemented:
 - Next.js 15 + TypeScript + Tailwind app scaffold
 - Prisma schema for watch profiles, candidates, signals, and external links
 - Docker Compose config for local PostgreSQL
@@ -32,13 +32,16 @@ Milestone 0, Milestone 1, and Milestone 2 are implemented:
 - connector registry with `mock`, `live`, and `stub` modes
 - live X recent-counts adapter behind feature flag + bearer token
 - Amazon and Keepa stub adapters behind feature flags
-- dashboard with filtering and sorting
-- candidate detail page with explainable scoring
+- dashboard with filtering, sorting, and export-ready candidate ranking
+- candidate detail page with richer explainable scoring
 - manual external-link registry UI
 - manual profit calculator
 - optional snapshot persistence when `DATABASE_URL` is present
 - structured connector degradation logging and status reporting
-- focused Vitest coverage for profit math, scoring, connector fallback, live X normalization, and optional persistence
+- scheduled refresh path with retry/backoff and job-run logging
+- admin operations page for refresh posture, job history, and CSV export
+- seed and manual refresh scripts for local or CI workflows
+- focused Vitest coverage for profit math, scoring, connector fallback, live X normalization, env parsing, CSV export, refresh jobs, and smoke behavior
 - GitHub Actions CI for pull requests and pushes to `main`
 
 The app remains fully runnable in mock mode for local, preview, and production deployments. When X credentials are unavailable, the X connector falls back safely without blocking the UI.
@@ -112,6 +115,18 @@ X_BEARER_TOKEN=your_token_here
 
 Amazon and Keepa can also be enabled, but in Milestone 2 they surface as explicit `stub` connectors rather than making live requests.
 
+Additional local commands:
+
+```bash
+npm run db:seed
+npm run jobs:refresh
+npm run test:smoke
+```
+
+- `npm run db:seed` stores safe mock snapshots into Postgres when `DATABASE_URL` is configured.
+- `npm run jobs:refresh` runs the same refresh flow used by the scheduled route and records a job log entry.
+- `npm run test:smoke` runs a small smoke suite for dashboard loading and refresh orchestration.
+
 ## Validation commands
 
 ```bash
@@ -128,6 +143,9 @@ npm test
 npm run build
 npm run db:format
 npm run db:push
+npm run db:seed
+npm run jobs:refresh
+npm run test:smoke
 ```
 
 - `npm run validate` runs lint, typecheck, and tests.
@@ -177,6 +195,16 @@ If any of those are missing, the app continues safely in mock mode for X.
 - `DIRECT_URL`
 
 When `DATABASE_URL` is available, the app will upsert a default watch profile plus candidate, external-link, and signal snapshots after runtime assembly. When it is absent, persistence is skipped and the UI still works.
+
+### Optional for scheduled refreshes and job logging
+
+- `ENABLE_SCHEDULED_JOBS`
+- `CRON_SECRET`
+- `JOB_RETRY_LIMIT`
+- `JOB_RETRY_BACKOFF_MS`
+- `REFRESH_CRON`
+
+When scheduled jobs are enabled, `/api/jobs/refresh` becomes the shared refresh endpoint for cron-driven updates. In production, set `CRON_SECRET` and pass it as `Authorization: Bearer <secret>` or `x-cron-secret`.
 
 ### Present but still deferred for later live adapters
 
@@ -246,6 +274,7 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 - Missing X keys in Preview should not block deployments; the app will continue using fixture-backed connectors.
 - Missing database credentials should not block deployments because snapshot persistence is optional in Milestone 2.
 - Enabling Amazon or Keepa without later-milestone implementations will show a `stub` status instead of making live requests.
+- Scheduled refreshes can stay disabled in Preview. When enabled in Production, protect them with `CRON_SECRET`.
 
 ## Prisma and database notes
 
@@ -264,6 +293,8 @@ No `vercel.json` is included because it is not needed right now. The default Ver
   Check `USE_MOCK_PROVIDERS=false`, `ENABLE_X_CONNECTOR=true`, and `X_BEARER_TOKEN`. If any are missing, X will stay in mock fallback mode.
 - Amazon or Keepa shows `stub` instead of live data:
   Expected in Milestone 2. Those adapters are intentionally feature-flagged stubs right now.
+- `/api/jobs/refresh` returns 401 or 503:
+  Check `ENABLE_SCHEDULED_JOBS`, set `CRON_SECRET`, and send it as a bearer token or `x-cron-secret` header.
 - Prisma-related deploy failures:
   Snapshot persistence is optional. Remove or fix `DATABASE_URL` / `DIRECT_URL`, or leave them unset if you do not need persistence yet.
 - Snapshot persistence does not seem to run:
@@ -277,8 +308,12 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 
 - `/` — Japanese dashboard with watchlists, connector status, filtering, sorting, and ranked candidates
 - `/en` — English dashboard
+- `/admin` — Japanese admin operations page with refresh posture, job history, and export links
+- `/en/admin` — English admin operations page
 - `/candidates/[slug]` — Japanese candidate detail page with source signals, score breakdown, reference links, and profit calculator
 - `/en/candidates/[slug]` — English candidate detail page
+- `/api/jobs/refresh` — protected refresh endpoint for scheduled or manual orchestration
+- `/api/exports/candidates.csv` — CSV export route with `?locale=ja|en`
 
 ## Project structure
 
@@ -291,7 +326,10 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 ├─ .env.example
 ├─ docker-compose.yml
 ├─ prisma/
-│  └─ schema.prisma
+│  ├─ schema.prisma
+│  └─ seed.ts
+├─ scripts/
+│  └─ run-refresh.ts
 ├─ src/
 │  ├─ app/
 │  ├─ components/
@@ -304,14 +342,15 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 - `src/lib/connectors` contains connector interfaces plus mock, live, and stub adapter implementations.
 - `src/lib/candidates` assembles dashboard-ready records from fixtures, signals, scoring, and profit math.
 - `src/lib/candidates/persistence.ts` optionally snapshots assembled records into Prisma without making the database mandatory.
+- `src/lib/jobs` contains refresh orchestration, auth checks, job-run logging, and admin data loading.
+- `src/lib/export/candidates-csv.ts` handles CSV generation with safe escaping.
 - `src/lib/scoring` and `src/lib/profit` hold pure logic suitable for focused tests.
 - `src/lib/config/env.ts` centralizes deployment-safe environment parsing and defaulting.
 - Prisma remains optional at runtime so mock mode stays reliable in local, preview, and production deployments.
 
-## Next milestone
+## Follow-on ideas
 
-Milestone 3 focuses on scoring improvements on top of the current adapter layer:
-- richer scoring inputs
-- clearer explanation payloads
-- more explicit risk deductions
-- additional score-oriented test coverage
+The roadmap beyond the completed milestones can now focus on:
+- live Amazon and Keepa adapters behind the existing connector contracts
+- richer operator workflows such as notes, approvals, and alerts
+- stronger operational analytics once production traffic patterns are known

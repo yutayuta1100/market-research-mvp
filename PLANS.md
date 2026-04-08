@@ -83,15 +83,16 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 **Goal:** Rank candidates with an explainable formula.
 
 ### Deliverables
-- [ ] scoring inputs defined
-- [ ] rule-based score implemented
-- [ ] explanation payload implemented
-- [ ] risk deductions implemented
-- [ ] score shown in dashboard and detail page
-- [ ] tests cover score math
+- [x] scoring inputs defined
+- [x] rule-based score implemented
+- [x] explanation payload implemented
+- [x] risk deductions implemented
+- [x] score shown in dashboard and detail page
+- [x] tests cover score math
 
 ### Exit criteria
 - Each ranked item can answer: "Why is this near the top?"
+- 2026-04-03: Expanded the scoring payload with freshness, evidence quality, explicit deductions, recommendation text, richer inputs, and refreshed tests/UI so each candidate can explain both upside and drag factors.
 
 ---
 
@@ -100,15 +101,16 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 **Goal:** Make the app refreshable and inspectable over time.
 
 ### Deliverables
-- [ ] scheduled refresh path exists
-- [ ] job-run logging exists
-- [ ] retry/backoff policy documented
-- [ ] admin page or job-status surface exists
-- [ ] CSV export works
-- [ ] seed/dev commands documented
+- [x] scheduled refresh path exists
+- [x] job-run logging exists
+- [x] retry/backoff policy documented
+- [x] admin page or job-status surface exists
+- [x] CSV export works
+- [x] seed/dev commands documented
 
 ### Exit criteria
 - The system can perform periodic refreshes and leave an audit trail.
+- 2026-04-03: Added a protected refresh route, retry-backed refresh orchestration, optional database-backed job logs with memory fallback, an admin status page, CSV export, and seed/manual-refresh scripts.
 
 ---
 
@@ -117,10 +119,10 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 **Goal:** Improve reliability and maintainability.
 
 ### Deliverables
-- [ ] connector fixture tests
-- [ ] parser regression tests
-- [ ] smoke tests
-- [ ] docs cleanup
+- [x] connector fixture tests
+- [x] parser regression tests
+- [x] smoke tests
+- [x] docs cleanup
 - [x] deployment notes
 - [x] environment and secrets guidance updated
 
@@ -128,6 +130,7 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 - Another developer can clone the repo, boot mock mode, and understand the roadmap.
 - 2026-04-01: Added GitHub Actions CI, deployment-safe env handling, public-repo ignore rules, and GitHub + Vercel deployment documentation without changing the Milestone 0/1 product scope.
 - 2026-04-02: Added a Japanese-first UI at `/` with an English route at `/en`, keeping mock-first behavior and shared Milestone 0/1 functionality intact.
+- 2026-04-03: Added connector fixture tests, env and CSV parser regression coverage, dashboard/job smoke tests, and README cleanup so the completed MVP is easier to continue operating and extending.
 
 ---
 
@@ -169,6 +172,7 @@ Add dated notes here when blocked.
 
 - 2026-04-01: `docker compose config` could not be run in this workspace because the `docker` CLI is not installed.
 - 2026-04-02: Multiple local Node-based validation commands (`eslint`, `tsc --noEmit`, `vitest`, `next`, and `prisma generate`) hung in this workspace even after installing Homebrew Node 22.22.2, so Milestone 2 validation could not be completed locally.
+- 2026-04-03: The validation blocker persists for the completed Milestone 3-5 work. `vitest` still hangs after startup in this workspace even under Homebrew Node 22, although `npm install --package-lock-only` completed successfully.
 
 ---
 

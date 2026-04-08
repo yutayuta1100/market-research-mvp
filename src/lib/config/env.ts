@@ -35,6 +35,7 @@ const envSchema = z.object({
   ENABLE_X_CONNECTOR: booleanFromString.default("false"),
   ENABLE_AMAZON_CONNECTOR: booleanFromString.default("false"),
   ENABLE_KEEPA_CONNECTOR: booleanFromString.default("false"),
+  ENABLE_SCHEDULED_JOBS: booleanFromString.default("false"),
   X_BEARER_TOKEN: optionalString,
   X_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   X_DEFAULT_QUERY_WINDOW_DAYS: z.coerce.number().int().min(1).max(7).default(7),
@@ -42,6 +43,10 @@ const envSchema = z.object({
   AMAZON_ACCESS_KEY_ID: optionalString,
   AMAZON_SECRET_ACCESS_KEY: optionalString,
   KEEPA_API_KEY: optionalString,
+  CRON_SECRET: optionalString,
+  REFRESH_CRON: z.string().default("0 */6 * * *"),
+  JOB_RETRY_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
+  JOB_RETRY_BACKOFF_MS: z.coerce.number().int().min(100).default(2000),
   DEFAULT_PLATFORM_FEE_RATE: z.coerce.number().min(0).max(1).default(0.1),
   DEFAULT_SHIPPING_COST: z.coerce.number().min(0).default(750),
   DEFAULT_OTHER_COST: z.coerce.number().min(0).default(0),
@@ -52,52 +57,69 @@ const envSchema = z.object({
   MOCK_WATCH_CATEGORIES: z.string().default("Collectibles,Audio,Gaming,Power"),
 });
 
-const parsedEnv = envSchema.parse({
-  NODE_ENV: process.env.NODE_ENV,
-  VERCEL_ENV: process.env.VERCEL_ENV,
-  VERCEL_URL: process.env.VERCEL_URL,
-  LOG_LEVEL: process.env.LOG_LEVEL,
-  APP_NAME: process.env.APP_NAME,
-  APP_URL: process.env.APP_URL,
-  DATABASE_URL: process.env.DATABASE_URL,
-  DIRECT_URL: process.env.DIRECT_URL,
-  USE_MOCK_PROVIDERS: process.env.USE_MOCK_PROVIDERS,
-  ENABLE_X_CONNECTOR: process.env.ENABLE_X_CONNECTOR,
-  ENABLE_AMAZON_CONNECTOR: process.env.ENABLE_AMAZON_CONNECTOR,
-  ENABLE_KEEPA_CONNECTOR: process.env.ENABLE_KEEPA_CONNECTOR,
-  X_BEARER_TOKEN: process.env.X_BEARER_TOKEN,
-  X_REQUEST_TIMEOUT_MS: process.env.X_REQUEST_TIMEOUT_MS,
-  X_DEFAULT_QUERY_WINDOW_DAYS: process.env.X_DEFAULT_QUERY_WINDOW_DAYS,
-  X_DEFAULT_LOCALE: process.env.X_DEFAULT_LOCALE,
-  AMAZON_ACCESS_KEY_ID: process.env.AMAZON_ACCESS_KEY_ID,
-  AMAZON_SECRET_ACCESS_KEY: process.env.AMAZON_SECRET_ACCESS_KEY,
-  KEEPA_API_KEY: process.env.KEEPA_API_KEY,
-  DEFAULT_PLATFORM_FEE_RATE: process.env.DEFAULT_PLATFORM_FEE_RATE,
-  DEFAULT_SHIPPING_COST: process.env.DEFAULT_SHIPPING_COST,
-  DEFAULT_OTHER_COST: process.env.DEFAULT_OTHER_COST,
-  HIGH_MARGIN_THRESHOLD: process.env.HIGH_MARGIN_THRESHOLD,
-  MOCK_WATCH_KEYWORDS: process.env.MOCK_WATCH_KEYWORDS,
-  MOCK_WATCH_CATEGORIES: process.env.MOCK_WATCH_CATEGORIES,
-});
+type EnvironmentSource = Record<string, string | undefined>;
 
-const resolvedAppUrl =
-  parsedEnv.APP_URL ?? (parsedEnv.VERCEL_URL ? `https://${parsedEnv.VERCEL_URL}` : "http://localhost:3000");
+export function parseEnvironment(source: EnvironmentSource) {
+  const parsedEnv = envSchema.parse({
+    NODE_ENV: source.NODE_ENV,
+    VERCEL_ENV: source.VERCEL_ENV,
+    VERCEL_URL: source.VERCEL_URL,
+    LOG_LEVEL: source.LOG_LEVEL,
+    APP_NAME: source.APP_NAME,
+    APP_URL: source.APP_URL,
+    DATABASE_URL: source.DATABASE_URL,
+    DIRECT_URL: source.DIRECT_URL,
+    USE_MOCK_PROVIDERS: source.USE_MOCK_PROVIDERS,
+    ENABLE_X_CONNECTOR: source.ENABLE_X_CONNECTOR,
+    ENABLE_AMAZON_CONNECTOR: source.ENABLE_AMAZON_CONNECTOR,
+    ENABLE_KEEPA_CONNECTOR: source.ENABLE_KEEPA_CONNECTOR,
+    ENABLE_SCHEDULED_JOBS: source.ENABLE_SCHEDULED_JOBS,
+    X_BEARER_TOKEN: source.X_BEARER_TOKEN,
+    X_REQUEST_TIMEOUT_MS: source.X_REQUEST_TIMEOUT_MS,
+    X_DEFAULT_QUERY_WINDOW_DAYS: source.X_DEFAULT_QUERY_WINDOW_DAYS,
+    X_DEFAULT_LOCALE: source.X_DEFAULT_LOCALE,
+    AMAZON_ACCESS_KEY_ID: source.AMAZON_ACCESS_KEY_ID,
+    AMAZON_SECRET_ACCESS_KEY: source.AMAZON_SECRET_ACCESS_KEY,
+    KEEPA_API_KEY: source.KEEPA_API_KEY,
+    CRON_SECRET: source.CRON_SECRET,
+    REFRESH_CRON: source.REFRESH_CRON,
+    JOB_RETRY_LIMIT: source.JOB_RETRY_LIMIT,
+    JOB_RETRY_BACKOFF_MS: source.JOB_RETRY_BACKOFF_MS,
+    DEFAULT_PLATFORM_FEE_RATE: source.DEFAULT_PLATFORM_FEE_RATE,
+    DEFAULT_SHIPPING_COST: source.DEFAULT_SHIPPING_COST,
+    DEFAULT_OTHER_COST: source.DEFAULT_OTHER_COST,
+    HIGH_MARGIN_THRESHOLD: source.HIGH_MARGIN_THRESHOLD,
+    MOCK_WATCH_KEYWORDS: source.MOCK_WATCH_KEYWORDS,
+    MOCK_WATCH_CATEGORIES: source.MOCK_WATCH_CATEGORIES,
+  });
 
-export const env = {
-  ...parsedEnv,
-  APP_URL: resolvedAppUrl,
-  DIRECT_URL: parsedEnv.DIRECT_URL ?? parsedEnv.DATABASE_URL,
-};
+  const resolvedAppUrl =
+    parsedEnv.APP_URL ?? (parsedEnv.VERCEL_URL ? `https://${parsedEnv.VERCEL_URL}` : "http://localhost:3000");
 
-export const envStatus = {
-  isVercelDeployment: Boolean(parsedEnv.VERCEL_URL),
-  deploymentEnvironment: parsedEnv.VERCEL_ENV ?? parsedEnv.NODE_ENV,
-  databaseConfigured: Boolean(parsedEnv.DATABASE_URL),
-  directDatabaseConfigured: Boolean(parsedEnv.DIRECT_URL ?? parsedEnv.DATABASE_URL),
-  xCredentialsConfigured: Boolean(parsedEnv.X_BEARER_TOKEN),
-  amazonCredentialsConfigured: Boolean(parsedEnv.AMAZON_ACCESS_KEY_ID && parsedEnv.AMAZON_SECRET_ACCESS_KEY),
-  keepaCredentialsConfigured: Boolean(parsedEnv.KEEPA_API_KEY),
-};
+  return {
+    env: {
+      ...parsedEnv,
+      APP_URL: resolvedAppUrl,
+      DIRECT_URL: parsedEnv.DIRECT_URL ?? parsedEnv.DATABASE_URL,
+    },
+    envStatus: {
+      isVercelDeployment: Boolean(parsedEnv.VERCEL_URL),
+      deploymentEnvironment: parsedEnv.VERCEL_ENV ?? parsedEnv.NODE_ENV,
+      databaseConfigured: Boolean(parsedEnv.DATABASE_URL),
+      directDatabaseConfigured: Boolean(parsedEnv.DIRECT_URL ?? parsedEnv.DATABASE_URL),
+      xCredentialsConfigured: Boolean(parsedEnv.X_BEARER_TOKEN),
+      amazonCredentialsConfigured: Boolean(parsedEnv.AMAZON_ACCESS_KEY_ID && parsedEnv.AMAZON_SECRET_ACCESS_KEY),
+      keepaCredentialsConfigured: Boolean(parsedEnv.KEEPA_API_KEY),
+      scheduledJobsEnabled: parsedEnv.ENABLE_SCHEDULED_JOBS,
+      cronSecretConfigured: Boolean(parsedEnv.CRON_SECRET),
+    },
+  };
+}
+
+const parsedEnvironment = parseEnvironment(process.env);
+
+export const env = parsedEnvironment.env;
+export const envStatus = parsedEnvironment.envStatus;
 
 export function splitCsv(value: string) {
   return value
