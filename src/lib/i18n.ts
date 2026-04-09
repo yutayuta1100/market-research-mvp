@@ -45,16 +45,16 @@ const keywordLabels = {
 
 const connectorLabels: Record<ConnectorKind, Record<AppLocale, string>> = {
   x: {
-    ja: "X",
-    en: "X",
+    ja: "SNS",
+    en: "Social",
   },
   amazon: {
     ja: "Amazon",
     en: "Amazon",
   },
   keepa: {
-    ja: "Keepa",
-    en: "Keepa",
+    ja: "相場",
+    en: "Market",
   },
 };
 
@@ -99,17 +99,17 @@ const sortOptionLabels: Record<CandidateSortOption, Record<AppLocale, string>> =
 const dictionaries = {
   ja: {
     metadataDescription:
-      "公開シグナルと参考リンクを使って潜在的な利益機会を見つける、モック中心の市場調査ダッシュボード。",
+      "公開シグナル、Amazon 価格、相場参考リンクを使って潜在的な利益機会を見つける市場調査ダッシュボード。",
     languageSwitcher: {
       label: "言語",
       ja: "日本語",
       en: "English",
     },
     dashboard: {
-      heroBadge: "Milestone 5 MVP",
-      heroTitle: "モック中心のリセール調査ボード",
+      heroBadge: "Public Data Beta",
+      heroTitle: "公開データで監視するリセール調査ボード",
       heroDescription:
-        "公開シグナル、公式 API アダプタ、参考リンクを使って候補を比較するオペレーター向けダッシュボードです。購入リンク・公式リンク・抽選リンクは参考表示のみです。",
+        "公開 SNS、Amazon の価格、国内相場の参考リンクを使って候補を比較するオペレーター向けダッシュボードです。購入リンク・公式リンク・抽選リンクは参考表示のみです。",
       adminLink: "運用ステータス",
       metricCandidates: "候補",
       metricWatchKeywords: "監視キーワード",
@@ -117,7 +117,7 @@ const dictionaries = {
       workspaceEyebrow: "候補ワークスペース",
       workspaceTitle: "ランク付けされた候補",
       workspaceDescription:
-        "スコア、利益率、利益額、更新時刻で並び替えできます。カテゴリやコネクタで絞り込みながら、mock / live / stub の接続状態を確認できます。",
+        "スコア、利益率、利益額、更新時刻で並び替えできます。カテゴリやコネクタで絞り込みながら、公開データ取得の状態を確認できます。",
       emptyTitle: "条件に一致する候補はありません",
       emptyDescription:
         "検索語、カテゴリ、ソースの条件を広げると、候補が再び表示されます。",
@@ -178,7 +178,7 @@ const dictionaries = {
       feeBaseline: "手数料基準",
       sourceSignalsEyebrow: "ソースシグナル",
       sourceSignalsTitle: "この候補が浮上した理由",
-      adapterFeedBadge: "アダプタフィード",
+      adapterFeedBadge: "公開データ",
       signalContext: (keyword: string, category: string, date: string) =>
         `キーワード「${keyword}」が ${category} で ${date} 時点に観測されました。`,
       openReference: "参考リンクを開く",
@@ -195,12 +195,12 @@ const dictionaries = {
       url: "URL",
       notes: "メモ",
       labelPlaceholder: "正規販売店、公式発売ページなど",
-      urlPlaceholder: "https://example.com/reference",
+      urlPlaceholder: "https://www.amazon.co.jp/...",
       notesPlaceholder: "手動確認でこのリンクが役立つ理由...",
       addSessionLink: "セッションに追加",
       requiredError: "ラベルと URL は必須です。",
       invalidUrlError: "有効な絶対 URL を入力してください。",
-      sessionEntryNote: "このセッションだけのモック登録です。",
+      sessionEntryNote: "このセッションだけの手動登録です。",
     },
     profit: {
       eyebrow: "利益試算",
@@ -281,17 +281,17 @@ const dictionaries = {
   },
   en: {
     metadataDescription:
-      "Market research dashboard for identifying potentially profitable resale opportunities using public signals, official adapters, and reference links.",
+      "Market research dashboard for identifying potentially profitable resale opportunities using public social signals, Amazon pricing, and market-reference links.",
     languageSwitcher: {
       label: "Language",
       ja: "日本語",
       en: "English",
     },
     dashboard: {
-      heroBadge: "Milestone 5 MVP",
-      heroTitle: "Mock-first resale research board",
+      heroBadge: "Public Data Beta",
+      heroTitle: "Public-data resale research board",
       heroDescription:
-        "Operator-facing dashboard for public-signal research, official adapter inputs, manual link review, and explainable profit estimates. Purchase, official, and raffle links are shown strictly as references.",
+        "Operator-facing dashboard for public social research, Amazon pricing, market-reference review, and explainable profit estimates. Purchase, official, and raffle links are shown strictly as references.",
       adminLink: "Ops status",
       metricCandidates: "Candidates",
       metricWatchKeywords: "Watch keywords",
@@ -299,7 +299,7 @@ const dictionaries = {
       workspaceEyebrow: "Candidate workspace",
       workspaceTitle: "Ranked opportunities",
       workspaceDescription:
-        "Sort by score, margin, profit, or recency. Filter by category and connector while keeping mock, live, and stub connector states visible.",
+        "Sort by score, margin, profit, or recency. Filter by category and connector while keeping public-data connector health visible.",
       emptyTitle: "No candidates matched these filters",
       emptyDescription:
         "Try widening the search, category, or source filters to bring candidates back into view.",
@@ -360,7 +360,7 @@ const dictionaries = {
       feeBaseline: "Fee baseline",
       sourceSignalsEyebrow: "Source signals",
       sourceSignalsTitle: "Why this candidate surfaced",
-      adapterFeedBadge: "Adapter feed",
+      adapterFeedBadge: "Public data",
       signalContext: (keyword: string, category: string, date: string) =>
         `Keyword ${keyword} in ${category} as of ${date}.`,
       openReference: "Open reference",
@@ -377,12 +377,12 @@ const dictionaries = {
       url: "URL",
       notes: "Notes",
       labelPlaceholder: "Authorized retailer, official launch page...",
-      urlPlaceholder: "https://example.com/reference",
+      urlPlaceholder: "https://www.amazon.co.jp/...",
       notesPlaceholder: "Why this link matters for manual review...",
       addSessionLink: "Add session link",
       requiredError: "Label and URL are required.",
       invalidUrlError: "Please enter a valid absolute URL.",
-      sessionEntryNote: "Session-only mock entry.",
+      sessionEntryNote: "Session-only manual entry.",
     },
     profit: {
       eyebrow: "Profit estimator",

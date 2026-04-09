@@ -30,6 +30,8 @@ export function scoreCandidate(input: ScoreCandidateInput): ScoreBreakdown {
       : input.signals.reduce((total, signal) => total + signal.strength, 0) / input.signals.length;
 
   const uniqueSources = new Set(input.signals.map((signal) => signal.connector)).size;
+  const verifiedSignals = input.signals.filter((signal) => signal.verification?.status === "verified").length;
+  const mixedSignals = input.signals.filter((signal) => signal.verification?.status === "mixed").length;
   const latestObservedAt = input.signals
     .map((signal) => new Date(signal.observedAt))
     .filter((value) => !Number.isNaN(value.getTime()))
@@ -54,10 +56,12 @@ export function scoreCandidate(input: ScoreCandidateInput): ScoreBreakdown {
     18,
   );
   const profitScore = clamp(Math.round(input.profit.netProfit / 750), 0, 16);
+  const verificationScore = clamp(verifiedSignals * 4 + mixedSignals * 2, 0, 8);
   const riskPenalty = clamp(input.riskFlags.length * 5, 0, 15);
-  const evidencePenalty = input.signals.length === 0 ? 10 : uniqueSources < 2 ? 5 : 0;
+  const evidencePenalty =
+    input.signals.length === 0 ? 10 : uniqueSources < 2 && verificationScore < 4 ? 5 : 0;
   const total = clamp(
-    trendScore + coverageScore + freshnessScore + marginScore + profitScore - riskPenalty - evidencePenalty,
+    trendScore + coverageScore + freshnessScore + marginScore + profitScore + verificationScore - riskPenalty - evidencePenalty,
     0,
     100,
   );
@@ -120,6 +124,19 @@ export function scoreCandidate(input: ScoreCandidateInput): ScoreBreakdown {
           ? `想定純利益は ${Math.round(input.profit.netProfit).toLocaleString("ja-JP")} 円です。`
           : `Expected net profit is JPY ${Math.round(input.profit.netProfit).toLocaleString("ja-JP")}.`,
     },
+    {
+      key: "verification",
+      label: locale === "ja" ? "裏取り品質" : "Verification quality",
+      value: verificationScore,
+      rationale:
+        verifiedSignals > 0
+          ? locale === "ja"
+            ? `裏取り済みシグナル ${verifiedSignals} 件と補助確認 ${mixedSignals} 件がスコアを押し上げています。`
+            : `${verifiedSignals} verified signal${verifiedSignals === 1 ? "" : "s"} and ${mixedSignals} supporting match${mixedSignals === 1 ? "" : "es"} improved confidence.`
+          : locale === "ja"
+            ? "公開ソースの裏取りはまだ弱く、ここでは大きな加点がありません。"
+            : "Public-source verification is still thin, so this component added limited confidence.",
+    },
   ];
 
   const inputs: ScoreInputMetric[] = [
@@ -155,6 +172,14 @@ export function scoreCandidate(input: ScoreCandidateInput): ScoreBreakdown {
       key: "margin",
       label: locale === "ja" ? "利益率" : "Margin",
       value: `${(input.profit.marginRate * 100).toFixed(1)}%`,
+    },
+    {
+      key: "verification",
+      label: locale === "ja" ? "裏取り済み" : "Verified signals",
+      value:
+        locale === "ja"
+          ? `${verifiedSignals}件 / 補助 ${mixedSignals}件`
+          : `${verifiedSignals} verified / ${mixedSignals} supporting`,
     },
     {
       key: "profit",

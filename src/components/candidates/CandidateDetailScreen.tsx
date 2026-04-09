@@ -125,6 +125,25 @@ export async function CandidateDetailScreen({
                       formatDate(signal.observedAt, locale),
                     )}
                   </p>
+                  {signal.verification ? (
+                    <p className="mt-2 text-sm leading-6 text-muted">{signal.verification.summary}</p>
+                  ) : null}
+                  {signal.evidence && signal.evidence.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {signal.evidence.slice(0, 3).map((evidence) => (
+                        <a
+                          key={evidence.id}
+                          className="inline-flex items-center rounded-full border border-line px-3 py-1 text-xs font-semibold text-muted transition hover:border-accent hover:text-accent"
+                          href={evidence.url}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {evidence.sourceLabel ? `${evidence.sourceLabel}: ` : ""}
+                          {evidence.label}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 {signal.referenceUrl ? (
                   <a

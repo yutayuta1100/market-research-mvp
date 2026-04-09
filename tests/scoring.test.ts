@@ -60,8 +60,8 @@ describe("scoreCandidate", () => {
     expect(score.total).toBe(71);
     expect(score.summary).toContain("Strong candidate");
     expect(score.band).toBe("medium");
-    expect(score.components).toHaveLength(5);
-    expect(score.inputs).toHaveLength(6);
+    expect(score.components).toHaveLength(6);
+    expect(score.inputs).toHaveLength(7);
     expect(score.deductions).toHaveLength(2);
     expect(score.components[0]?.label).toBe("Signal strength");
     expect(score.risks).toHaveLength(1);

@@ -12,7 +12,7 @@ describe("createMockConnector", () => {
 
     const connector = createMockConnector("x", "Mock feed active.", "en");
     const result = await connector.fetchSignals({
-      keywords: ["restock"],
+      keywords: [],
       categories: ["Gaming"],
       targets: [target],
     });

@@ -29,9 +29,11 @@ Milestone 0 through Milestone 5 are implemented:
 - Prisma schema for watch profiles, candidates, signals, and external links
 - Docker Compose config for local PostgreSQL
 - environment parsing with deployment-safe defaults
-- connector registry with `mock`, `live`, and `stub` modes
-- live X recent-counts adapter behind feature flag + bearer token
-- Amazon and Keepa stub adapters behind feature flags
+- connector registry with mock-first and public-live ingestion paths
+- public social verification via Yahoo search over indexed social/community pages
+- public Amazon search parsing with Yahoo! Shopping fallback for buy-side reference prices
+- public Yahoo! Auctions parsing for resale-side reference prices
+- optional official X recent-counts adapter behind feature flag + bearer token
 - dashboard with filtering, sorting, and export-ready candidate ranking
 - candidate detail page with richer explainable scoring
 - manual external-link registry UI
@@ -41,10 +43,10 @@ Milestone 0 through Milestone 5 are implemented:
 - scheduled refresh path with retry/backoff and job-run logging
 - admin operations page for refresh posture, job history, and CSV export
 - seed and manual refresh scripts for local or CI workflows
-- focused Vitest coverage for profit math, scoring, connector fallback, live X normalization, env parsing, CSV export, refresh jobs, and smoke behavior
+- focused Vitest coverage for profit math, scoring, connector fallback, public-data parsers, live X normalization, env parsing, CSV export, refresh jobs, and smoke behavior
 - GitHub Actions CI for pull requests and pushes to `main`
 
-The app remains fully runnable in mock mode for local, preview, and production deployments. When X credentials are unavailable, the X connector falls back safely without blocking the UI.
+The app remains fully runnable in mock mode for local, preview, and production deployments. When `USE_MOCK_PROVIDERS=false`, the public deployment path uses public search/index pages for social verification, Amazon pricing, and resale references without attempting any bot-evasion or marketplace bypass.
 
 ## UI languages
 
@@ -105,15 +107,25 @@ Use Node.js 20 or 22 LTS.
 
 The dashboard boots without live API keys as long as `USE_MOCK_PROVIDERS=true`, which remains the recommended default for local and preview environments.
 
-To exercise the Milestone 2 live X adapter locally:
+To exercise the public live-data path locally:
 
 ```bash
 USE_MOCK_PROVIDERS=false
+```
+
+That enables:
+- public social verification through Yahoo web search over indexed social/community pages
+- public Amazon search parsing with Yahoo! Shopping fallback for buy-side reference prices
+- public Yahoo! Auctions parsing for resale reference prices
+
+To upgrade the social connector from indexed public social search to the official X recent-counts adapter:
+
+```bash
 ENABLE_X_CONNECTOR=true
 X_BEARER_TOKEN=your_token_here
 ```
 
-Amazon and Keepa can also be enabled, but in Milestone 2 they surface as explicit `stub` connectors rather than making live requests.
+The app does not require private Amazon or Keepa credentials for the current public-data path.
 
 Additional local commands:
 
@@ -166,7 +178,11 @@ The app uses explicit Zod parsing in [src/lib/config/env.ts](/Users/onoe/Desktop
 - `LOG_LEVEL`
   Optional. Defaults to `info`.
 - `USE_MOCK_PROVIDERS`
-  Recommended `true` in Development and Preview. Production can also keep this `true` when you want a safe fixture-backed deployment.
+  Recommended `true` in Development and Preview. Set this to `false` in Production when you want the live public-data path.
+- `SOCIAL_REQUEST_TIMEOUT_MS`
+- `AMAZON_REQUEST_TIMEOUT_MS`
+- `MARKET_REQUEST_TIMEOUT_MS`
+- `LIVE_DATA_REVALIDATE_SECONDS`
 - `DEFAULT_PLATFORM_FEE_RATE`
 - `DEFAULT_SHIPPING_COST`
 - `DEFAULT_OTHER_COST`
@@ -174,7 +190,16 @@ The app uses explicit Zod parsing in [src/lib/config/env.ts](/Users/onoe/Desktop
 - `MOCK_WATCH_KEYWORDS`
 - `MOCK_WATCH_CATEGORIES`
 
-### Optional for Milestone 2 live X
+### Live public-data mode
+
+When `USE_MOCK_PROVIDERS=false`, the default connector behavior is:
+- social verification: Yahoo search over indexed public social/community pages
+- buy-side pricing: Amazon public search parsing with Yahoo! Shopping fallback when Amazon yields no usable match
+- resale reference pricing: Yahoo! Auctions public search parsing
+
+This mode does not require private API credentials and keeps the app within market-research-only boundaries.
+
+### Optional for official X recent-counts
 
 - `ENABLE_X_CONNECTOR`
 - `X_BEARER_TOKEN`
@@ -206,14 +231,14 @@ When `DATABASE_URL` is available, the app will upsert a default watch profile pl
 
 When scheduled jobs are enabled, `/api/jobs/refresh` becomes the shared refresh endpoint for cron-driven updates. In production, set `CRON_SECRET` and pass it as `Authorization: Bearer <secret>` or `x-cron-secret`.
 
-### Present but still deferred for later live adapters
+### Present but not required for the current public-data path
 
 - `ENABLE_AMAZON_CONNECTOR`
 - `AMAZON_ACCESS_KEY_ID`
 - `AMAZON_SECRET_ACCESS_KEY`
 - `KEEPA_API_KEY`
 
-In Milestone 2, Amazon and Keepa can be turned on to show explicit `stub` connector states, but they do not make live API calls yet.
+These are reserved for future official or partner API integrations. The current deployed app does not need them to fetch public Amazon or resale-market references.
 
 ### Recommended Vercel environment posture
 
@@ -222,7 +247,7 @@ In Milestone 2, Amazon and Keepa can be turned on to show explicit `stub` connec
 - Preview:
   `USE_MOCK_PROVIDERS=true`
 - Production:
-  `USE_MOCK_PROVIDERS=true` for the safest public deployment, or disable it only when you intentionally want live X
+  `USE_MOCK_PROVIDERS=false` when you want the live public-data path, with `APP_URL` set to the canonical site URL
 
 For current deployments, database variables may be left unset if you do not want snapshot persistence.
 
@@ -270,18 +295,17 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 ## Preview vs production behavior
 
 - Preview deployments should stay safe and demo-friendly by keeping `USE_MOCK_PROVIDERS=true`.
-- Production can also remain in mock mode indefinitely.
-- Missing X keys in Preview should not block deployments; the app will continue using fixture-backed connectors.
-- Missing database credentials should not block deployments because snapshot persistence is optional in Milestone 2.
-- Enabling Amazon or Keepa without later-milestone implementations will show a `stub` status instead of making live requests.
+- Production can also remain in mock mode indefinitely, but the public site can run with `USE_MOCK_PROVIDERS=false` and no private API keys.
+- Missing X keys in Preview or Production should not block deployments; the app will continue using indexed public social verification when mock mode is off.
+- Missing database credentials should not block deployments because snapshot persistence is optional.
 - Scheduled refreshes can stay disabled in Preview. When enabled in Production, protect them with `CRON_SECRET`.
 
 ## Prisma and database notes
 
 - Prisma is configured and generated during install so Vercel builds remain predictable.
 - `docker-compose.yml` only helps local development.
-- Vercel does not provide PostgreSQL by itself. For Milestone 2 snapshot persistence, use an external managed Postgres service and set `DATABASE_URL` and `DIRECT_URL` in Vercel.
-- The UI does not read back from Prisma yet, so Preview and Production can remain database-free while the app runs in mock mode or live-X-without-persistence mode.
+- Vercel does not provide PostgreSQL by itself. For snapshot persistence, use an external managed Postgres service and set `DATABASE_URL` and `DIRECT_URL` in Vercel.
+- The UI does not read back from Prisma yet, so Preview and Production can remain database-free while the app runs in mock mode or live public-data mode.
 
 ## Troubleshooting
 
@@ -290,15 +314,17 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 - Local lint or typecheck behaves differently from GitHub Actions:
   This repo is pinned to Node 20 or 22 LTS for GitHub and Vercel compatibility. Node 25 is outside the supported range.
 - Vercel preview deploys but no live data appears:
-  Check `USE_MOCK_PROVIDERS=false`, `ENABLE_X_CONNECTOR=true`, and `X_BEARER_TOKEN`. If any are missing, X will stay in mock fallback mode.
-- Amazon or Keepa shows `stub` instead of live data:
-  Expected in Milestone 2. Those adapters are intentionally feature-flagged stubs right now.
+  Check `USE_MOCK_PROVIDERS=false`. Public Amazon/social/market connectors do not require private credentials. Only the official X recent-counts path needs `ENABLE_X_CONNECTOR=true` and `X_BEARER_TOKEN`.
+- A candidate still shows weak or zero live signals:
+  Public search results can vary by region and time. The app now filters harder for exact model/box matches, but some targets will still need manual operator review.
 - `/api/jobs/refresh` returns 401 or 503:
   Check `ENABLE_SCHEDULED_JOBS`, set `CRON_SECRET`, and send it as a bearer token or `x-cron-secret` header.
 - Prisma-related deploy failures:
   Snapshot persistence is optional. Remove or fix `DATABASE_URL` / `DIRECT_URL`, or leave them unset if you do not need persistence yet.
 - Snapshot persistence does not seem to run:
   Ensure `DATABASE_URL` is set and test the default Japanese route first. Milestone 2 intentionally skips duplicate writes from the secondary locale route.
+- Alternate metadata points at a temporary Vercel URL:
+  Set `APP_URL` in Vercel to the canonical production domain so metadata and language alternates resolve correctly.
 - GitHub Actions or Vercel uses a different Node version:
   Use Node 20 or 22 LTS locally and keep Vercel on a supported LTS release.
 - Docker commands do not work in deployment:
@@ -339,18 +365,18 @@ No `vercel.json` is included because it is not needed right now. The default Ver
 
 ## Architecture notes
 
-- `src/lib/connectors` contains connector interfaces plus mock, live, and stub adapter implementations.
+- `src/lib/connectors` contains connector interfaces plus mock adapters, public live adapters, and the optional official X adapter.
 - `src/lib/candidates` assembles dashboard-ready records from fixtures, signals, scoring, and profit math.
 - `src/lib/candidates/persistence.ts` optionally snapshots assembled records into Prisma without making the database mandatory.
 - `src/lib/jobs` contains refresh orchestration, auth checks, job-run logging, and admin data loading.
 - `src/lib/export/candidates-csv.ts` handles CSV generation with safe escaping.
 - `src/lib/scoring` and `src/lib/profit` hold pure logic suitable for focused tests.
 - `src/lib/config/env.ts` centralizes deployment-safe environment parsing and defaulting.
-- Prisma remains optional at runtime so mock mode stays reliable in local, preview, and production deployments.
+- Prisma remains optional at runtime so mock mode and live public-data mode stay reliable in local, preview, and production deployments.
 
 ## Follow-on ideas
 
 The roadmap beyond the completed milestones can now focus on:
-- live Amazon and Keepa adapters behind the existing connector contracts
+- optional official Amazon and price-history adapters behind the existing connector contracts
 - richer operator workflows such as notes, approvals, and alerts
 - stronger operational analytics once production traffic patterns are known

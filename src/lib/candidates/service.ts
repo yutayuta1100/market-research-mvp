@@ -1,8 +1,14 @@
 import { persistCandidateSnapshot } from "@/lib/candidates/persistence";
-import type { CandidateFilters, CandidateRecord, CandidateSortOption, ConnectorStatus } from "@/lib/candidates/types";
+import type {
+  CandidateFilters,
+  CandidateRecord,
+  CandidateSortOption,
+  ConnectorStatus,
+  ExternalLink,
+} from "@/lib/candidates/types";
 import { watchConfig } from "@/lib/config/watch-config";
 import { buildSignalConnectors } from "@/lib/connectors/registry";
-import type { ConnectorSignal } from "@/lib/connectors/types";
+import type { ConnectorSignal, WatchTarget } from "@/lib/connectors/types";
 import { getCategoryLabel, getKeywordLabel, type AppLocale } from "@/lib/i18n";
 import { createLogger } from "@/lib/logger";
 import { getCandidateCatalog, getWatchTargets } from "@/lib/mock/fixtures";
@@ -32,6 +38,100 @@ function getLatestObservedAt(signals: ConnectorSignal[]) {
 
 function normalizeQueryValue(value: string | undefined) {
   return value?.trim().toLowerCase() ?? "";
+}
+
+function getStringMetadata(signal: ConnectorSignal | undefined, key: string) {
+  const value = signal?.metadata?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function getNumberMetadata(signal: ConnectorSignal | undefined, key: string) {
+  const value = signal?.metadata?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function mergeLinks(baseLinks: ExternalLink[], nextLinks: ExternalLink[]) {
+  const map = new Map<string, ExternalLink>();
+
+  for (const link of [...baseLinks, ...nextLinks]) {
+    map.set(`${link.type}:${link.label}`, link);
+  }
+
+  return [...map.values()];
+}
+
+function buildRuntimeLinks(args: {
+  locale: AppLocale;
+  baseLinks: ExternalLink[];
+  target: WatchTarget;
+  amazonSignal?: ConnectorSignal;
+  marketSignal?: ConnectorSignal;
+  socialSignal?: ConnectorSignal;
+}) {
+  const nextLinks: ExternalLink[] = [
+    {
+      id: `${args.target.candidateSlug}-official-runtime`,
+      type: "official",
+      label: args.target.officialLabel,
+      url: args.target.officialUrl,
+      notes:
+        args.locale === "ja"
+          ? "公式情報の確認用リンクです。"
+          : "Official information link for manual verification.",
+    },
+  ];
+
+  const amazonProductUrl = getStringMetadata(args.amazonSignal, "productUrl");
+  const amazonListingTitle = getStringMetadata(args.amazonSignal, "listingTitle");
+  const amazonPrice = getNumberMetadata(args.amazonSignal, "buyPrice");
+  const amazonSourceLabel = getStringMetadata(args.amazonSignal, "sourceLabel");
+
+  nextLinks.push({
+    id: `${args.target.candidateSlug}-purchase-runtime`,
+    type: "purchase",
+    label: args.locale === "ja" ? "購入参考リンク" : "Purchase reference",
+    url: amazonProductUrl ?? args.baseLinks.find((link) => link.type === "purchase")?.url ?? args.target.officialUrl,
+    notes:
+      amazonPrice && amazonListingTitle
+        ? args.locale === "ja"
+          ? `${amazonSourceLabel ?? "公開 EC"} 一致商品: ${amazonListingTitle} / 現在価格 ${amazonPrice.toLocaleString("ja-JP")} 円`
+          : `${amazonSourceLabel ?? "Public ecommerce"} match: ${amazonListingTitle} / current price JPY ${amazonPrice.toLocaleString("ja-JP")}`
+        : args.locale === "ja"
+          ? "ライブ購入リンクを取得できなかったため、検索リンクを表示しています。"
+          : "Live purchase listing unavailable, so the fallback search link is shown.",
+  });
+
+  const marketUrl = args.marketSignal?.referenceUrl ?? args.baseLinks.find((link) => link.type === "reference")?.url;
+  const marketPrice = getNumberMetadata(args.marketSignal, "estimatedSellPrice");
+
+  if (marketUrl) {
+    nextLinks.push({
+      id: `${args.target.candidateSlug}-market-runtime`,
+      type: "reference",
+      label: args.locale === "ja" ? "相場参考リンク" : "Market reference",
+      url: marketUrl,
+      notes:
+        marketPrice
+          ? args.locale === "ja"
+            ? `公開相場の参考売価中央値は ${marketPrice.toLocaleString("ja-JP")} 円です。`
+            : `Public reference-market median is JPY ${marketPrice.toLocaleString("ja-JP")}.`
+          : args.locale === "ja"
+            ? "公開相場検索の参考リンクです。"
+            : "Reference link for public resale-market checks.",
+    });
+  }
+
+  if (args.socialSignal?.referenceUrl) {
+    nextLinks.push({
+      id: `${args.target.candidateSlug}-social-runtime`,
+      type: "reference",
+      label: args.locale === "ja" ? "SNS 裏取りリンク" : "Social verification link",
+      url: args.socialSignal.referenceUrl,
+      notes: args.socialSignal.verification?.summary,
+    });
+  }
+
+  return mergeLinks(args.baseLinks, nextLinks);
 }
 
 function sortCandidates(candidates: CandidateRecord[], sort: CandidateSortOption) {
@@ -76,10 +176,12 @@ function filterCandidates(candidates: CandidateRecord[], filters: CandidateFilte
 
 function buildCandidateRecords(locale: AppLocale) {
   const localizedCatalog = getCandidateCatalog(locale);
+  const watchTargets = getWatchTargets(locale);
+  const targetsBySlug = new Map(watchTargets.map((target) => [target.candidateSlug, target]));
   const connectors = buildSignalConnectors(undefined, locale);
   const connectorContext = {
     ...watchConfig,
-    targets: getWatchTargets(locale),
+    targets: watchTargets,
   };
 
   return Promise.allSettled(connectors.map((connector) => connector.fetchSignals(connectorContext))).then(async (batches) => {
@@ -129,9 +231,18 @@ function buildCandidateRecords(locale: AppLocale) {
       const signals = [...(groupedSignals.get(candidate.slug) ?? [])].sort(
         (left, right) => new Date(right.observedAt).getTime() - new Date(left.observedAt).getTime(),
       );
+      const target = targetsBySlug.get(candidate.slug);
+      const amazonSignal = signals.find((signal) => signal.connector === "amazon");
+      const marketSignal = signals.find((signal) => signal.connector === "keepa");
+      const socialSignal = signals.find((signal) => signal.connector === "x");
+      const estimatedBuyPrice = getNumberMetadata(amazonSignal, "buyPrice") ?? target?.fallbackBuyPrice ?? candidate.estimatedBuyPrice;
+      const estimatedSellPrice =
+        getNumberMetadata(marketSignal, "estimatedSellPrice") ?? target?.fallbackSellPrice ?? candidate.estimatedSellPrice;
+      const thumbnailUrl =
+        getStringMetadata(amazonSignal, "imageUrl") ?? target?.fallbackThumbnailUrl ?? candidate.thumbnailUrl;
       const profit = calculateProfit({
-        buyPrice: candidate.estimatedBuyPrice,
-        sellPrice: candidate.estimatedSellPrice,
+        buyPrice: estimatedBuyPrice,
+        sellPrice: estimatedSellPrice,
         platformFeeRate: env.DEFAULT_PLATFORM_FEE_RATE,
         shippingCost: candidate.shippingCost,
         otherCost: candidate.otherCost,
@@ -146,6 +257,20 @@ function buildCandidateRecords(locale: AppLocale) {
 
       return {
         ...candidate,
+        estimatedBuyPrice,
+        estimatedSellPrice,
+        thumbnailUrl,
+        externalLinks:
+          target
+            ? buildRuntimeLinks({
+                locale,
+                baseLinks: candidate.externalLinks,
+                target,
+                amazonSignal,
+                marketSignal,
+                socialSignal,
+              })
+            : candidate.externalLinks,
         lastObservedAt: getLatestObservedAt(signals),
         signals,
         profit,

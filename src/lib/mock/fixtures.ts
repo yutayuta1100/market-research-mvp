@@ -1,594 +1,449 @@
 import type { CandidateCatalogEntry, ExternalLink } from "@/lib/candidates/types";
+import {
+  buildAmazonSearchUrl,
+  buildSocialSearchUrl,
+  buildYahooAuctionsSearchUrl,
+  watchTargetSources,
+} from "@/lib/config/watch-targets";
 import type { ConnectorKind, ConnectorSignal, WatchTarget } from "@/lib/connectors/types";
-import { getCategoryLabel, getKeywordLabel, type AppLocale } from "@/lib/i18n";
+import { getCategoryLabel, type AppLocale } from "@/lib/i18n";
 
 type LocalizedText = Record<AppLocale, string>;
 
-interface LocalizedExternalLink extends Omit<ExternalLink, "label" | "notes"> {
-  label: LocalizedText;
-  notes?: LocalizedText;
-}
-
-interface CandidateCatalogSource
-  extends Omit<CandidateCatalogEntry, "title" | "brand" | "category" | "shortDescription" | "riskFlags" | "externalLinks"> {
-  title: LocalizedText;
-  brand: LocalizedText;
-  categoryKey: string;
-  displayKeyword: LocalizedText;
-  xQueryTerms: string[];
-  shortDescription: LocalizedText;
-  riskFlags: LocalizedText[];
-  externalLinks: LocalizedExternalLink[];
-}
-
-interface LocalizedConnectorSignalSource
-  extends Omit<ConnectorSignal, "keyword" | "category" | "metricLabel" | "summary"> {
-  keywordKey: string;
-  categoryKey: string;
+interface MockSignalSource {
+  id: string;
+  connector: ConnectorKind;
+  candidateSlug: string;
   metricLabel: LocalizedText;
+  metricValue: number;
+  strength: number;
   summary: LocalizedText;
+  observedAt: string;
+  referenceUrl: string;
 }
 
 function pickText(value: LocalizedText, locale: AppLocale) {
   return value[locale];
 }
 
-const candidateCatalogSource: CandidateCatalogSource[] = [
-  {
-    id: "cand-aurora-headphones",
-    slug: "aurora-studio-headphones",
-    title: {
-      ja: "Aurora Studio ワイヤレスヘッドホン",
-      en: "Aurora Studio Wireless Headphones",
+function buildBaseLinks(args: {
+  locale: AppLocale;
+  officialLabel: LocalizedText;
+  officialUrl: string;
+  amazonSearchQuery: string;
+  socialSearchQuery: string;
+  resaleSearchQuery: string;
+}): ExternalLink[] {
+  return [
+    {
+      id: `${args.amazonSearchQuery}-official`,
+      type: "official",
+      label: pickText(args.officialLabel, args.locale),
+      url: args.officialUrl,
+      notes:
+        args.locale === "ja"
+          ? "メーカーや公式商品ページの確認用リンクです。"
+          : "Official manufacturer or product page for manual verification.",
     },
-    brand: {
-      ja: "Aurora Audio",
-      en: "Aurora Audio",
+    {
+      id: `${args.amazonSearchQuery}-purchase`,
+      type: "purchase",
+      label: args.locale === "ja" ? "Amazon 検索リンク" : "Amazon search link",
+      url: buildAmazonSearchUrl(args.amazonSearchQuery),
+      notes:
+        args.locale === "ja"
+          ? "自動操作はせず、人が価格と在庫を確認するための購入参考リンクです。"
+          : "Reference-only purchase link for manual price and stock review.",
     },
-    categoryKey: "audio",
-    displayKeyword: {
-      ja: "Aurora ヘッドホン",
-      en: "Aurora headphones",
+    {
+      id: `${args.resaleSearchQuery}-market`,
+      type: "reference",
+      label: args.locale === "ja" ? "Yahoo!オークション相場検索" : "Yahoo! Auctions market search",
+      url: buildYahooAuctionsSearchUrl(args.resaleSearchQuery),
+      notes:
+        args.locale === "ja"
+          ? "現在の国内相場を目視確認するための参考リンクです。"
+          : "Reference market-search link for manual Japanese resale checks.",
     },
-    xQueryTerms: ['"Aurora Studio"', '"Aurora Audio"', "headphones"],
-    thumbnailUrl:
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
-    shortDescription: {
-      ja: "季節限定カラーがプレミアム音響コミュニティで安定した再販スプレッドを保っています。",
-      en: "Seasonal colorway with steady resale spread across premium audio communities.",
+    {
+      id: `${args.socialSearchQuery}-social`,
+      type: "reference",
+      label: args.locale === "ja" ? "公開 SNS 検索" : "Public social search",
+      url: buildSocialSearchUrl(args.socialSearchQuery),
+      notes:
+        args.locale === "ja"
+          ? "公開 SNS やコミュニティ投稿の一次ソースを人手で裏取りするための参考リンクです。"
+          : "Reference-only link for manually verifying public social and community sources.",
     },
-    estimatedBuyPrice: 24800,
-    estimatedSellPrice: 33800,
-    shippingCost: 900,
-    otherCost: 400,
-    riskFlags: [
-      {
-        ja: "広い再入荷が入ると、カラー需要が急速に落ち着く可能性があります。",
-        en: "Colorway demand can cool once wider restocks land.",
-      },
-    ],
-    externalLinks: [
-      {
-        id: "link-aurora-official",
-        type: "official",
-        label: {
-          ja: "公式商品ページ",
-          en: "Official product page",
-        },
-        url: "https://example.com/aurora/headphones",
-        notes: {
-          ja: "参考表示のみ。自動操作はしません。",
-          en: "Reference only. No automated interaction.",
-        },
-      },
-      {
-        id: "link-aurora-purchase",
-        type: "purchase",
-        label: {
-          ja: "主要販売ページ",
-          en: "Primary retail listing",
-        },
-        url: "https://example.com/retail/aurora-headphones",
-        notes: {
-          ja: "人が確認するための購入参考リンクです。",
-          en: "Reference purchase link for manual operator review.",
-        },
-      },
-      {
-        id: "link-aurora-review",
-        type: "reference",
-        label: {
-          ja: "コミュニティ価格スレッド",
-          en: "Community price thread",
-        },
-        url: "https://example.com/market/aurora-thread",
-        notes: {
-          ja: "手動コンプ確認や売れ行きメモに役立ちます。",
-          en: "Useful for manual comps and sell-through notes.",
-        },
-      },
-    ],
-  },
-  {
-    id: "cand-nova-console",
-    slug: "nova-pocket-console",
-    title: {
-      ja: "Nova Pocket レトロコンソール",
-      en: "Nova Pocket Retro Console",
-    },
-    brand: {
-      ja: "Nova",
-      en: "Nova",
-    },
-    categoryKey: "gaming",
-    displayKeyword: {
-      ja: "Nova 携帯ゲーム機",
-      en: "Nova handheld",
-    },
-    xQueryTerms: ['"Nova Pocket"', '"Nova"', '"retro console"', "handheld"],
-    thumbnailUrl:
-      "https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=1200&q=80",
-    shortDescription: {
-      ja: "コンパクトな携帯機で、供給管理された販売とコレクター界隈の再入荷話題が強い状態です。",
-      en: "Compact handheld with controlled drops and strong restock chatter in collector circles.",
-    },
-    estimatedBuyPrice: 18900,
-    estimatedSellPrice: 25900,
-    shippingCost: 800,
-    otherCost: 300,
-    riskFlags: [
-      {
-        ja: "大量補充が入ると、数日で再販価格が圧縮されるおそれがあります。",
-        en: "High-volume replenishment could compress resale within days.",
-      },
-    ],
-    externalLinks: [
-      {
-        id: "link-nova-official",
-        type: "official",
-        label: {
-          ja: "公式ローンチページ",
-          en: "Official launch page",
-        },
-        url: "https://example.com/nova/console",
-        notes: {
-          ja: "参考表示のみです。",
-          en: "Reference only.",
-        },
-      },
-      {
-        id: "link-nova-purchase",
-        type: "purchase",
-        label: {
-          ja: "販売予約ページ",
-          en: "Retail reservation page",
-        },
-        url: "https://example.com/retail/nova-console",
-        notes: {
-          ja: "手動確認専用です。",
-          en: "For manual review only.",
-        },
-      },
-      {
-        id: "link-nova-raffle",
-        type: "raffle",
-        label: {
-          ja: "抽選告知ページ",
-          en: "Lottery announcement",
-        },
-        url: "https://example.com/lottery/nova-console",
-        notes: {
-          ja: "参考リンクとしてのみ表示します。",
-          en: "Displayed only as a reference link.",
-        },
-      },
-    ],
-  },
-  {
-    id: "cand-summit-power-bank",
-    slug: "summit-power-bank-275",
-    title: {
-      ja: "Summit 27.5K トラベルモバイルバッテリー",
-      en: "Summit 27.5K Travel Power Bank",
-    },
-    brand: {
-      ja: "Summit",
-      en: "Summit",
-    },
-    categoryKey: "power",
-    displayKeyword: {
-      ja: "Summit モバイルバッテリー",
-      en: "Summit power bank",
-    },
-    xQueryTerms: ['"Summit 27.5K"', '"Summit"', '"power bank"', '"travel battery"'],
-    thumbnailUrl:
-      "https://images.unsplash.com/photo-1587033411391-5d9e51cce126?auto=format&fit=crop&w=1200&q=80",
-    shortDescription: {
-      ja: "高容量バッテリーで、ベストセラー勢いと堅い価格下限を維持しています。",
-      en: "High-capacity battery pack riding bestseller momentum with disciplined price floors.",
-    },
-    estimatedBuyPrice: 15400,
-    estimatedSellPrice: 21400,
-    shippingCost: 700,
-    otherCost: 250,
-    riskFlags: [
-      {
-        ja: "バッテリー配送制限でフルフィルメント費用が増える可能性があります。",
-        en: "Battery shipping restrictions may increase fulfillment costs.",
-      },
-    ],
-    externalLinks: [
-      {
-        id: "link-summit-official",
-        type: "official",
-        label: {
-          ja: "公式仕様ページ",
-          en: "Official specs",
-        },
-        url: "https://example.com/summit/power-bank",
-        notes: {
-          ja: "参考表示のみです。",
-          en: "Reference only.",
-        },
-      },
-      {
-        id: "link-summit-purchase",
-        type: "purchase",
-        label: {
-          ja: "正規販売店ページ",
-          en: "Authorized retailer page",
-        },
-        url: "https://example.com/retail/summit-power-bank",
-        notes: {
-          ja: "手動確認用リンクです。",
-          en: "Manual review link.",
-        },
-      },
-      {
-        id: "link-summit-reference",
-        type: "reference",
-        label: {
-          ja: "価格ウォッチメモ",
-          en: "Price-watch notes",
-        },
-        url: "https://example.com/reference/summit-power-bank",
-        notes: {
-          ja: "トレンド確認用の参考リンクです。",
-          en: "Reference link for trend notes.",
-        },
-      },
-    ],
-  },
-  {
-    id: "cand-mythic-box",
-    slug: "mythic-booster-collector-box",
-    title: {
-      ja: "Mythic コレクター・ブースターボックス",
-      en: "Mythic Collector Booster Box",
-    },
-    brand: {
-      ja: "Mythic Forge",
-      en: "Mythic Forge",
-    },
-    categoryKey: "collectibles",
-    displayKeyword: {
-      ja: "Mythic ブースターボックス",
-      en: "Mythic booster box",
-    },
-    xQueryTerms: ['"Mythic Collector Booster"', '"Mythic Forge"', '"booster box"'],
-    thumbnailUrl:
-      "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=1200&q=80",
-    shortDescription: {
-      ja: "発売初週のコレクター商品で、二次流通の比較価格上昇と強い検索流入が見られます。",
-      en: "Launch-week collectible with rising secondary comps and strong keyword pull.",
-    },
-    estimatedBuyPrice: 11800,
-    estimatedSellPrice: 19800,
-    shippingCost: 750,
-    otherCost: 200,
-    riskFlags: [
-      {
-        ja: "発売直後の需要が落ち着くと、コレクター需要が反落する可能性があります。",
-        en: "Collectible demand can retrace after the initial release window.",
-      },
-    ],
-    externalLinks: [
-      {
-        id: "link-mythic-official",
-        type: "official",
-        label: {
-          ja: "公式リリースノート",
-          en: "Official release notes",
-        },
-        url: "https://example.com/mythic/booster-box",
-        notes: {
-          ja: "参考表示のみです。",
-          en: "Reference only.",
-        },
-      },
-      {
-        id: "link-mythic-purchase",
-        type: "purchase",
-        label: {
-          ja: "予約販売ページ",
-          en: "Preorder page",
-        },
-        url: "https://example.com/retail/mythic-booster-box",
-        notes: {
-          ja: "手動確認用リンクです。",
-          en: "Manual review link.",
-        },
-      },
-      {
-        id: "link-mythic-reference",
-        type: "reference",
-        label: {
-          ja: "コレクター市場スナップショット",
-          en: "Collector market snapshot",
-        },
-        url: "https://example.com/reference/mythic-box",
-        notes: {
-          ja: "手動検証向けの比較価格参考リンクです。",
-          en: "Reference comps for manual verification.",
-        },
-      },
-    ],
-  },
-];
+  ];
+}
 
-const mockSignalSource: Record<ConnectorKind, LocalizedConnectorSignalSource[]> = {
+const mockSignalSource: Record<ConnectorKind, MockSignalSource[]> = {
   x: [
     {
-      id: "x-aurora-1",
+      id: "social-sony-1",
       connector: "x",
-      candidateSlug: "aurora-studio-headphones",
-      keywordKey: "limited release",
-      categoryKey: "audio",
+      candidateSlug: "sony-wh-1000xm5",
       metricLabel: {
-        ja: "言及速度",
-        en: "Mention velocity",
+        ja: "直近 SNS 投稿数",
+        en: "Recent social posts",
       },
-      metricValue: 74,
-      strength: 74,
+      metricValue: 6,
+      strength: 66,
       summary: {
-        ja: "季節カラー発表後も言及速度が高い水準を維持しています。",
-        en: "Mention velocity remains elevated after the seasonal color announcement.",
+        ja: "Reddit 上で WH-1000XM5 の価格比較と買い替え相談が複数スレッドで観測されています。",
+        en: "Multiple Reddit threads are still discussing WH-1000XM5 pricing and upgrade decisions.",
       },
-      observedAt: "2026-03-31T08:30:00+09:00",
-      referenceUrl: "https://example.com/social/aurora",
+      observedAt: "2026-04-08T19:10:00+09:00",
+      referenceUrl: buildSocialSearchUrl(
+        "(\"WH-1000XM5\" OR \"Sony XM5\") (site:youtube.com OR site:instagram.com OR site:reddit.com OR site:x.com)",
+      ),
     },
     {
-      id: "x-nova-1",
+      id: "social-switch-1",
       connector: "x",
-      candidateSlug: "nova-pocket-console",
-      keywordKey: "restock",
-      categoryKey: "gaming",
+      candidateSlug: "nintendo-switch-2",
       metricLabel: {
-        ja: "再入荷話題量",
-        en: "Restock chatter",
+        ja: "直近 SNS 投稿数",
+        en: "Recent social posts",
       },
-      metricValue: 82,
-      strength: 82,
-      summary: {
-        ja: "携帯ゲーム機コレクターの間で再入荷ワードの話題が上向いています。",
-        en: "Restock keyword chatter is trending upward among handheld collectors.",
-      },
-      observedAt: "2026-03-31T10:10:00+09:00",
-      referenceUrl: "https://example.com/social/nova",
-    },
-    {
-      id: "x-mythic-1",
-      connector: "x",
-      candidateSlug: "mythic-booster-collector-box",
-      keywordKey: "best seller",
-      categoryKey: "collectibles",
-      metricLabel: {
-        ja: "コレクター反応",
-        en: "Collector engagement",
-      },
-      metricValue: 88,
+      metricValue: 10,
       strength: 88,
       summary: {
-        ja: "最終予約波でもコレクターの反応が強いままです。",
-        en: "Collector engagement stayed strong through the final preorder wave.",
+        ja: "Switch 2 の在庫・抽選・再入荷に関する話題が継続しており、需要観測に使えます。",
+        en: "Switch 2 stock, lottery, and restock threads remain active enough to support demand monitoring.",
       },
-      observedAt: "2026-03-30T19:20:00+09:00",
-      referenceUrl: "https://example.com/social/mythic",
+      observedAt: "2026-04-08T20:20:00+09:00",
+      referenceUrl: buildSocialSearchUrl(
+        "(\"Nintendo Switch 2\" OR \"Switch 2\") (site:youtube.com OR site:instagram.com OR site:reddit.com OR site:x.com)",
+      ),
+    },
+    {
+      id: "social-anker-1",
+      connector: "x",
+      candidateSlug: "anker-prime-27650",
+      metricLabel: {
+        ja: "直近 SNS 投稿数",
+        en: "Recent social posts",
+      },
+      metricValue: 5,
+      strength: 58,
+      summary: {
+        ja: "Anker Prime 27650 のセール価格と運用レビューが公開 SNS に流れています。",
+        en: "Public social posts still surface sale pricing and usage reviews for the Anker Prime 27650.",
+      },
+      observedAt: "2026-04-08T17:50:00+09:00",
+      referenceUrl: buildSocialSearchUrl(
+        "(\"Anker Prime 27650\" OR \"Anker Prime 27,650\") (site:youtube.com OR site:instagram.com OR site:reddit.com OR site:x.com)",
+      ),
+    },
+    {
+      id: "social-pokemon-1",
+      connector: "x",
+      candidateSlug: "pokemon-card-151-box",
+      metricLabel: {
+        ja: "直近 SNS 投稿数",
+        en: "Recent social posts",
+      },
+      metricValue: 12,
+      strength: 94,
+      summary: {
+        ja: "Pokemon 151 BOX の再販・当たり封入・価格差に関する投稿が複数コミュニティで継続しています。",
+        en: "Pokemon 151 booster-box chatter remains active across multiple communities around reprints and pricing.",
+      },
+      observedAt: "2026-04-08T21:10:00+09:00",
+      referenceUrl: buildSocialSearchUrl(
+        "(\"ポケモンカード151\" OR \"Pokemon 151 booster box\") (site:youtube.com OR site:instagram.com OR site:reddit.com OR site:x.com)",
+      ),
     },
   ],
   amazon: [
     {
-      id: "amazon-aurora-1",
+      id: "amazon-sony-1",
       connector: "amazon",
-      candidateSlug: "aurora-studio-headphones",
-      keywordKey: "best seller",
-      categoryKey: "audio",
+      candidateSlug: "sony-wh-1000xm5",
       metricLabel: {
-        ja: "カテゴリ順位",
-        en: "Category rank",
+        ja: "Amazon 実売価格",
+        en: "Amazon live price",
       },
-      metricValue: 12,
-      strength: 79,
+      metricValue: 47800,
+      strength: 72,
       summary: {
-        ja: "ポータブルオーディオで上位ベストセラー帯を維持しています。",
-        en: "The item is holding a top-tier bestseller slot in portable audio.",
+        ja: "Amazon 検索上位の WH-1000XM5 実売価格を参照しています。",
+        en: "Using the live price from the highest-matching Amazon search result for WH-1000XM5.",
       },
-      observedAt: "2026-03-31T07:00:00+09:00",
-      referenceUrl: "https://example.com/amazon/aurora",
+      observedAt: "2026-04-08T20:35:00+09:00",
+      referenceUrl: buildAmazonSearchUrl("Sony WH-1000XM5"),
     },
     {
-      id: "amazon-summit-1",
+      id: "amazon-switch-1",
       connector: "amazon",
-      candidateSlug: "summit-power-bank-275",
-      keywordKey: "best seller",
-      categoryKey: "power",
+      candidateSlug: "nintendo-switch-2",
       metricLabel: {
-        ja: "カテゴリ順位",
-        en: "Category rank",
+        ja: "Amazon 実売価格",
+        en: "Amazon live price",
       },
-      metricValue: 7,
-      strength: 86,
+      metricValue: 69980,
+      strength: 91,
       summary: {
-        ja: "トラベル電源カテゴリで上位帯を維持しています。",
-        en: "Travel power remains near the top of its category leaderboard.",
+        ja: "Switch 2 本体の Amazon 検索上位価格を仕入れ基準として参照しています。",
+        en: "Using the top Amazon price for Nintendo Switch 2 console as the buy-side reference.",
       },
-      observedAt: "2026-03-31T09:15:00+09:00",
-      referenceUrl: "https://example.com/amazon/summit",
+      observedAt: "2026-04-08T20:40:00+09:00",
+      referenceUrl: buildAmazonSearchUrl("Nintendo Switch 2 本体"),
     },
     {
-      id: "amazon-mythic-1",
+      id: "amazon-anker-1",
       connector: "amazon",
-      candidateSlug: "mythic-booster-collector-box",
-      keywordKey: "limited release",
-      categoryKey: "collectibles",
+      candidateSlug: "anker-prime-27650",
       metricLabel: {
-        ja: "カテゴリ順位",
-        en: "Category rank",
+        ja: "Amazon 実売価格",
+        en: "Amazon live price",
       },
-      metricValue: 4,
-      strength: 90,
+      metricValue: 21990,
+      strength: 63,
       summary: {
-        ja: "コレクターボックスがホビー予約ランキング上位に位置しています。",
-        en: "Collector box sits near the top of hobby preorder rankings.",
+        ja: "Anker Prime 27650 の Amazon 検索上位価格を参照しています。",
+        en: "Using the top matching Amazon price for the Anker Prime 27650.",
       },
-      observedAt: "2026-03-31T11:40:00+09:00",
-      referenceUrl: "https://example.com/amazon/mythic",
+      observedAt: "2026-04-08T18:30:00+09:00",
+      referenceUrl: buildAmazonSearchUrl("Anker Prime 27650"),
+    },
+    {
+      id: "amazon-pokemon-1",
+      connector: "amazon",
+      candidateSlug: "pokemon-card-151-box",
+      metricLabel: {
+        ja: "Amazon 実売価格",
+        en: "Amazon live price",
+      },
+      metricValue: 16800,
+      strength: 85,
+      summary: {
+        ja: "ポケモンカード 151 BOX の Amazon 検索上位価格を仕入れ参考値に使っています。",
+        en: "Using the top Amazon price for Pokemon 151 booster boxes as the buy-side reference.",
+      },
+      observedAt: "2026-04-08T21:15:00+09:00",
+      referenceUrl: buildAmazonSearchUrl("ポケモンカード 151 box"),
     },
   ],
   keepa: [
     {
-      id: "keepa-nova-1",
+      id: "market-sony-1",
       connector: "keepa",
-      candidateSlug: "nova-pocket-console",
-      keywordKey: "price spike",
-      categoryKey: "gaming",
+      candidateSlug: "sony-wh-1000xm5",
       metricLabel: {
-        ja: "30日フロア差",
-        en: "30-day floor delta",
+        ja: "国内相場中央値",
+        en: "Median resale listing",
       },
-      metricValue: 18,
-      strength: 76,
+      metricValue: 54800,
+      strength: 61,
       summary: {
-        ja: "中古市場の下限価格が直近30日より上昇しています。",
-        en: "Used-market floor prices have risen against the prior 30-day window.",
+        ja: "Yahoo!オークション検索上位の現在価格帯を相場参考値に使っています。",
+        en: "Using the median current Yahoo! Auctions listing price as the resale reference.",
       },
-      observedAt: "2026-03-31T06:45:00+09:00",
-      referenceUrl: "https://example.com/keepa/nova",
+      observedAt: "2026-04-08T19:40:00+09:00",
+      referenceUrl: buildYahooAuctionsSearchUrl("WH-1000XM5"),
     },
     {
-      id: "keepa-summit-1",
+      id: "market-switch-1",
       connector: "keepa",
-      candidateSlug: "summit-power-bank-275",
-      keywordKey: "price spike",
-      categoryKey: "power",
+      candidateSlug: "nintendo-switch-2",
       metricLabel: {
-        ja: "90日Buy Box差",
-        en: "90-day buy box delta",
+        ja: "国内相場中央値",
+        en: "Median resale listing",
       },
-      metricValue: 11,
-      strength: 71,
+      metricValue: 79800,
+      strength: 90,
       summary: {
-        ja: "Buy Box の粘りから、前四半期より健全な価格下限が示唆されます。",
-        en: "Buy-box resilience suggests a healthier floor than the prior quarter.",
+        ja: "Switch 2 本体の国内出品相場を現在価格ベースで参照しています。",
+        en: "Using the current Japanese listing median as the reference market price for Switch 2.",
       },
-      observedAt: "2026-03-30T18:30:00+09:00",
-      referenceUrl: "https://example.com/keepa/summit",
+      observedAt: "2026-04-08T20:45:00+09:00",
+      referenceUrl: buildYahooAuctionsSearchUrl("Nintendo Switch 2 本体"),
     },
     {
-      id: "keepa-mythic-1",
+      id: "market-anker-1",
       connector: "keepa",
-      candidateSlug: "mythic-booster-collector-box",
-      keywordKey: "price spike",
-      categoryKey: "collectibles",
+      candidateSlug: "anker-prime-27650",
       metricLabel: {
-        ja: "二次流通フロア差",
-        en: "Secondary floor delta",
+        ja: "国内相場中央値",
+        en: "Median resale listing",
       },
-      metricValue: 24,
-      strength: 84,
+      metricValue: 26800,
+      strength: 55,
       summary: {
-        ja: "二次流通の下限価格が週ごとに段階的に上がっています。",
-        en: "Secondary floor continues to stair-step higher week over week.",
+        ja: "Anker Prime 27650 の国内出品相場を現在価格ベースで確認しています。",
+        en: "Using the current domestic listing median as the reference price for the Anker Prime 27650.",
       },
-      observedAt: "2026-03-31T12:20:00+09:00",
-      referenceUrl: "https://example.com/keepa/mythic",
+      observedAt: "2026-04-08T18:55:00+09:00",
+      referenceUrl: buildYahooAuctionsSearchUrl("Anker Prime 27650"),
+    },
+    {
+      id: "market-pokemon-1",
+      connector: "keepa",
+      candidateSlug: "pokemon-card-151-box",
+      metricLabel: {
+        ja: "国内相場中央値",
+        en: "Median resale listing",
+      },
+      metricValue: 21800,
+      strength: 92,
+      summary: {
+        ja: "151 BOX の国内出品相場中央値を比較価格として使っています。",
+        en: "Using the domestic listing median for 151 booster boxes as the reference market price.",
+      },
+      observedAt: "2026-04-08T21:05:00+09:00",
+      referenceUrl: buildYahooAuctionsSearchUrl("ポケモンカード 151 box"),
     },
   ],
 };
 
 export function getCandidateCatalog(locale: AppLocale): CandidateCatalogEntry[] {
-  return candidateCatalogSource.map((candidate) => ({
-    id: candidate.id,
-    slug: candidate.slug,
-    title: pickText(candidate.title, locale),
-    brand: pickText(candidate.brand, locale),
-    category: getCategoryLabel(candidate.categoryKey, locale),
-    thumbnailUrl: candidate.thumbnailUrl,
-    shortDescription: pickText(candidate.shortDescription, locale),
-    estimatedBuyPrice: candidate.estimatedBuyPrice,
-    estimatedSellPrice: candidate.estimatedSellPrice,
-    shippingCost: candidate.shippingCost,
-    otherCost: candidate.otherCost,
-    riskFlags: candidate.riskFlags.map((risk) => pickText(risk, locale)),
-    externalLinks: candidate.externalLinks.map((link) => ({
-      id: link.id,
-      type: link.type,
-      label: pickText(link.label, locale),
-      url: link.url,
-      notes: link.notes ? pickText(link.notes, locale) : undefined,
-    })),
+  return watchTargetSources.map((target) => ({
+    id: target.id,
+    slug: target.slug,
+    title: target.title[locale],
+    brand: target.brand[locale],
+    category: getCategoryLabel(target.categoryKey, locale),
+    thumbnailUrl: target.fallbackThumbnailUrl,
+    shortDescription: target.shortDescription[locale],
+    estimatedBuyPrice: target.fallbackBuyPrice,
+    estimatedSellPrice: target.fallbackSellPrice,
+    shippingCost: 750,
+    otherCost: 0,
+    riskFlags: target.riskFlags.map((risk) => risk[locale]),
+    externalLinks: buildBaseLinks({
+      locale,
+      officialLabel: target.officialLabel,
+      officialUrl: target.officialUrl,
+      amazonSearchQuery: target.amazonSearchQuery,
+      socialSearchQuery: target.socialSearchQuery,
+      resaleSearchQuery: target.resaleSearchQuery,
+    }),
   }));
 }
 
 export function getWatchTargets(locale: AppLocale): WatchTarget[] {
-  return candidateCatalogSource.map((candidate) => ({
-    candidateSlug: candidate.slug,
-    displayKeyword: pickText(candidate.displayKeyword, locale),
-    category: getCategoryLabel(candidate.categoryKey, locale),
-    xQueryTerms: candidate.xQueryTerms,
+  return watchTargetSources.map((target) => ({
+    candidateSlug: target.slug,
+    displayKeyword: target.displayKeyword[locale],
+    category: getCategoryLabel(target.categoryKey, locale),
+    xQueryTerms: target.xQueryTerms,
+    socialQuery: target.socialSearchQuery,
+    socialMatchTerms: target.socialMatchTerms,
+    socialRequiredTerms: target.socialRequiredTerms,
+    socialExcludedTerms: target.socialExcludedTerms,
+    amazonSearchQuery: target.amazonSearchQuery,
+    amazonMatchTerms: target.amazonMatchTerms,
+    amazonRequiredTerms: target.amazonRequiredTerms,
+    amazonExcludedTerms: target.amazonExcludedTerms,
+    resaleSearchQuery: target.resaleSearchQuery,
+    resaleMatchTerms: target.resaleMatchTerms,
+    resaleRequiredTerms: target.resaleRequiredTerms,
+    resaleExcludedTerms: target.resaleExcludedTerms,
+    fallbackBuyPrice: target.fallbackBuyPrice,
+    fallbackSellPrice: target.fallbackSellPrice,
+    fallbackThumbnailUrl: target.fallbackThumbnailUrl,
+    officialUrl: target.officialUrl,
+    officialLabel: target.officialLabel[locale],
   }));
 }
 
 export function getMockSignalFixtures(locale: AppLocale): Record<ConnectorKind, ConnectorSignal[]> {
+  const targets = getWatchTargets(locale);
+  const targetsBySlug = new Map(targets.map((target) => [target.candidateSlug, target]));
+
   return {
     x: mockSignalSource.x.map((signal) => ({
       id: signal.id,
       connector: signal.connector,
       candidateSlug: signal.candidateSlug,
-      keyword: getKeywordLabel(signal.keywordKey, locale),
-      category: getCategoryLabel(signal.categoryKey, locale),
-      metricLabel: pickText(signal.metricLabel, locale),
+      keyword: targetsBySlug.get(signal.candidateSlug)?.displayKeyword ?? "",
+      category: targetsBySlug.get(signal.candidateSlug)?.category ?? "",
+      metricLabel: signal.metricLabel[locale],
       metricValue: signal.metricValue,
       strength: signal.strength,
-      summary: pickText(signal.summary, locale),
+      summary: signal.summary[locale],
       observedAt: signal.observedAt,
       referenceUrl: signal.referenceUrl,
+      verification: {
+        status: "verified",
+        summary:
+          locale === "ja"
+            ? "複数の公開 SNS 投稿で確認済みのモック根拠です。"
+            : "Mock evidence marked as verified across multiple public social posts.",
+        evidenceCount: 2,
+      },
+      evidence: [
+        {
+          id: `${signal.id}-search`,
+          label: locale === "ja" ? "検索結果を確認" : "Open search results",
+          url: signal.referenceUrl,
+          sourceLabel: locale === "ja" ? "公開 SNS 検索" : "Public social search",
+          observedAt: signal.observedAt,
+        },
+      ],
     })),
     amazon: mockSignalSource.amazon.map((signal) => ({
       id: signal.id,
       connector: signal.connector,
       candidateSlug: signal.candidateSlug,
-      keyword: getKeywordLabel(signal.keywordKey, locale),
-      category: getCategoryLabel(signal.categoryKey, locale),
-      metricLabel: pickText(signal.metricLabel, locale),
+      keyword: targetsBySlug.get(signal.candidateSlug)?.displayKeyword ?? "",
+      category: targetsBySlug.get(signal.candidateSlug)?.category ?? "",
+      metricLabel: signal.metricLabel[locale],
       metricValue: signal.metricValue,
       strength: signal.strength,
-      summary: pickText(signal.summary, locale),
+      summary: signal.summary[locale],
       observedAt: signal.observedAt,
       referenceUrl: signal.referenceUrl,
+      verification: {
+        status: "verified",
+        summary:
+          locale === "ja"
+            ? "Amazon の実在検索リンクを使ったモック価格です。"
+            : "Mock price tied to a real Amazon search URL.",
+        evidenceCount: 1,
+      },
+      evidence: [
+        {
+          id: `${signal.id}-amazon`,
+          label: locale === "ja" ? "Amazon 検索を開く" : "Open Amazon search",
+          url: signal.referenceUrl,
+          sourceLabel: "Amazon",
+          observedAt: signal.observedAt,
+        },
+      ],
     })),
     keepa: mockSignalSource.keepa.map((signal) => ({
       id: signal.id,
       connector: signal.connector,
       candidateSlug: signal.candidateSlug,
-      keyword: getKeywordLabel(signal.keywordKey, locale),
-      category: getCategoryLabel(signal.categoryKey, locale),
-      metricLabel: pickText(signal.metricLabel, locale),
+      keyword: targetsBySlug.get(signal.candidateSlug)?.displayKeyword ?? "",
+      category: targetsBySlug.get(signal.candidateSlug)?.category ?? "",
+      metricLabel: signal.metricLabel[locale],
       metricValue: signal.metricValue,
       strength: signal.strength,
-      summary: pickText(signal.summary, locale),
+      summary: signal.summary[locale],
       observedAt: signal.observedAt,
       referenceUrl: signal.referenceUrl,
+      verification: {
+        status: "mixed",
+        summary:
+          locale === "ja"
+            ? "国内相場を模したモック値です。live path では公開相場検索を参照します。"
+            : "Mock reference price modeled after a public domestic market search.",
+        evidenceCount: 1,
+      },
+      evidence: [
+        {
+          id: `${signal.id}-market`,
+          label: locale === "ja" ? "相場検索を開く" : "Open market search",
+          url: signal.referenceUrl,
+          sourceLabel: locale === "ja" ? "Yahoo!オークション" : "Yahoo! Auctions",
+          observedAt: signal.observedAt,
+        },
+      ],
     })),
   };
 }

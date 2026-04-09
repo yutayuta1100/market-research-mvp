@@ -75,6 +75,8 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 ### Exit criteria
 - At least one live or fixture-backed adapter can populate normalized data without breaking local dev.
 - 2026-04-02: Added connector mode/state typing, watch-target metadata, a live X recent-counts adapter, Amazon/Keepa stub adapters, degraded-status logging, `Promise.allSettled` assembly, and optional Prisma snapshot persistence while keeping mock mode as the default-safe runtime path.
+- 2026-04-08: Replaced fictional candidate links with real public watch targets and switched the non-mock runtime to public social verification, public Amazon search parsing, and Yahoo! Auctions resale references, while keeping mock mode and optional official X support intact.
+- 2026-04-08: Added Yahoo! Shopping buy-side fallback when Amazon public search returns no usable match, so production can still attach real purchase links and price references from public ecommerce pages.
 
 ---
 
@@ -131,6 +133,8 @@ Use it to keep work scoped, reviewable, and resumable. Native plan mode in Codex
 - 2026-04-01: Added GitHub Actions CI, deployment-safe env handling, public-repo ignore rules, and GitHub + Vercel deployment documentation without changing the Milestone 0/1 product scope.
 - 2026-04-02: Added a Japanese-first UI at `/` with an English route at `/en`, keeping mock-first behavior and shared Milestone 0/1 functionality intact.
 - 2026-04-03: Added connector fixture tests, env and CSV parser regression coverage, dashboard/job smoke tests, and README cleanup so the completed MVP is easier to continue operating and extending.
+- 2026-04-08: Tightened live matching with required/excluded terms, added indexed social-source verification, and aligned docs/env guidance with the public-data deployment path.
+- 2026-04-08: Hardened the buy-side connector with Yahoo! Shopping fallback to reduce zero-result gaps in production without adding bot-evasion behavior.
 
 ---
 
@@ -182,8 +186,9 @@ Record important architectural decisions here.
 
 - Initial product boundary excludes automation that executes purchases or enters raffles automatically.
 - MVP should remain explainable and mock-first.
-- Milestone 0 and 1 runtime uses fixture-backed connectors by default, and Milestone 2 keeps that mock-first posture unless live X is explicitly enabled with credentials.
-- Milestone 2 enables live X only when mock mode is disabled and a bearer token is configured; Amazon and Keepa remain explicit stubs behind their feature flags.
+- Milestone 0 and 1 runtime uses fixture-backed connectors by default, and later milestones keep that mock-safe posture available for local, preview, and fallback use.
+- When `USE_MOCK_PROVIDERS=false`, the default live path now uses public social search, Amazon public search, and Yahoo! Auctions public search. Official X remains optional when credentials are configured.
+- When Amazon public search yields no usable buy-side match, the live path now falls back to Yahoo! Shopping public results before using seeded fallback prices.
 - Milestone 2 snapshot persistence is optional and only runs when `DATABASE_URL` is configured, so Vercel deployments can stay database-free.
 - No `vercel.json` is checked in because Vercel's default Next.js deployment behavior is sufficient for the current App Router setup.
 - Deployment and CI target Node 20 or 22 LTS to stay aligned with Vercel-supported runtimes.

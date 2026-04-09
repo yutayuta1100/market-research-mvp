@@ -9,10 +9,13 @@ import type {
 } from "@/lib/connectors/types";
 
 function matchesContext(signal: ConnectorSignal, context: ConnectorContext, locale: AppLocale) {
-  const localizedKeywords = context.keywords.map((keyword) => getKeywordLabel(keyword, locale).toLowerCase());
   const localizedCategories = context.categories.map((category) => getCategoryLabel(category, locale).toLowerCase());
+  const allowedTargets = new Set(context.targets.map((target) => target.candidateSlug));
+  const localizedKeywords = context.keywords.map((keyword) => getKeywordLabel(keyword, locale).toLowerCase());
   const keywordMatch =
-    localizedKeywords.length === 0 || localizedKeywords.some((keyword) => keyword === signal.keyword.toLowerCase());
+    localizedKeywords.length === 0 ||
+    localizedKeywords.some((keyword) => signal.summary.toLowerCase().includes(keyword)) ||
+    allowedTargets.has(signal.candidateSlug);
   const categoryMatch =
     localizedCategories.length === 0 || localizedCategories.some((category) => category === signal.category.toLowerCase());
 

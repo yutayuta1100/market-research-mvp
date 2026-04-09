@@ -4,7 +4,7 @@ import { buildSignalConnectors } from "@/lib/connectors/registry";
 import { getWatchTargets } from "@/lib/mock/fixtures";
 
 describe("buildSignalConnectors", () => {
-  it("keeps mock fallbacks active when live connectors are disabled or missing credentials", async () => {
+  it("uses the public-data live connectors when mock mode is disabled even without private credentials", async () => {
     const connectors = buildSignalConnectors({
       useMockProviders: false,
       xEnabled: false,
@@ -15,31 +15,23 @@ describe("buildSignalConnectors", () => {
       amazonSecretAccessKey: "",
       keepaApiKey: "",
       xRequestTimeoutMs: 15000,
+      socialRequestTimeoutMs: 15000,
+      amazonRequestTimeoutMs: 15000,
+      marketRequestTimeoutMs: 15000,
+      liveDataRevalidateSeconds: 1800,
       xDefaultQueryWindowDays: 7,
       xDefaultLocale: "ja",
       logLevel: "error",
     }, "en");
 
-    const batches = await Promise.all(
-      connectors.map((connector) =>
-        connector.fetchSignals({
-          keywords: ["limited release", "restock", "best seller", "price spike"],
-          categories: ["Collectibles", "Audio", "Gaming", "Power"],
-          targets: getWatchTargets("en"),
-        }),
-      ),
-    );
-
     expect(connectors).toHaveLength(3);
-    expect(connectors.every((connector) => connector.mode === "mock")).toBe(true);
-    expect(batches.every((batch) => batch.status.statusMessage.includes("Mock fallback"))).toBe(true);
-    expect(batches.flatMap((batch) => batch.signals).length).toBeGreaterThan(0);
+    expect(connectors.every((connector) => connector.mode === "live")).toBe(true);
   });
 
-  it("falls back to mock X data when live X is enabled without a bearer token", async () => {
+  it("keeps mock fixtures active when mock mode is explicitly enabled", async () => {
     const connectors = buildSignalConnectors(
       {
-        useMockProviders: false,
+        useMockProviders: true,
         xEnabled: true,
         amazonEnabled: false,
         keepaEnabled: false,
@@ -48,6 +40,10 @@ describe("buildSignalConnectors", () => {
         amazonSecretAccessKey: "",
         keepaApiKey: "",
         xRequestTimeoutMs: 15000,
+        socialRequestTimeoutMs: 15000,
+        amazonRequestTimeoutMs: 15000,
+        marketRequestTimeoutMs: 15000,
+        liveDataRevalidateSeconds: 1800,
         xDefaultQueryWindowDays: 7,
         xDefaultLocale: "ja",
         logLevel: "error",
@@ -56,18 +52,17 @@ describe("buildSignalConnectors", () => {
     );
 
     const xResult = await connectors[0]?.fetchSignals({
-      keywords: ["limited release"],
-      categories: ["Collectibles"],
+      keywords: [],
+      categories: [],
       targets: getWatchTargets("en"),
     });
 
     expect(connectors[0]?.mode).toBe("mock");
     expect(xResult?.status.mode).toBe("mock");
-    expect(xResult?.status.statusMessage).toContain("Mock fallback");
     expect(xResult?.signals.length).toBeGreaterThan(0);
   });
 
-  it("promotes X to live while exposing Amazon and Keepa as stubs when mock mode is disabled", () => {
+  it("promotes all connector slots to live public-data mode when mock mode is disabled", () => {
     const connectors = buildSignalConnectors({
       useMockProviders: false,
       xEnabled: true,
@@ -78,11 +73,15 @@ describe("buildSignalConnectors", () => {
       amazonSecretAccessKey: "",
       keepaApiKey: "",
       xRequestTimeoutMs: 15000,
+      socialRequestTimeoutMs: 15000,
+      amazonRequestTimeoutMs: 15000,
+      marketRequestTimeoutMs: 15000,
+      liveDataRevalidateSeconds: 1800,
       xDefaultQueryWindowDays: 7,
       xDefaultLocale: "ja",
       logLevel: "error",
     }, "en");
 
-    expect(connectors.map((connector) => connector.mode)).toEqual(["live", "stub", "stub"]);
+    expect(connectors.map((connector) => connector.mode)).toEqual(["live", "live", "live"]);
   });
 });

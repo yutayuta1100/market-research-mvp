@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import type { CandidateFilters, CandidateSortOption } from "@/lib/candidates/types";
-import { getDictionary, getLocalePath, getSortOptionLabel, type AppLocale } from "@/lib/i18n";
+import { getConnectorLabel, getDictionary, getLocalePath, getSortOptionLabel, type AppLocale } from "@/lib/i18n";
 
 interface DashboardFiltersProps {
   categories: string[];
@@ -51,9 +51,9 @@ export function DashboardFilters({ categories, selectedFilters, locale }: Dashbo
           name="source"
         >
           <option value="all">{dictionary.filters.allSources}</option>
-          <option value="x">X</option>
-          <option value="amazon">Amazon</option>
-          <option value="keepa">Keepa</option>
+          <option value="x">{getConnectorLabel("x", locale)}</option>
+          <option value="amazon">{getConnectorLabel("amazon", locale)}</option>
+          <option value="keepa">{getConnectorLabel("keepa", locale)}</option>
         </select>
       </label>
 
